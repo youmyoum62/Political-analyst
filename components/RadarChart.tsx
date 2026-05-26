@@ -6,11 +6,11 @@ import { PoliticianScoreBreakdown } from '@/lib/types';
 
 export function RadarChart({ metrics }: { metrics: PoliticianScoreBreakdown }) {
   const data = [
-    { key: '活動度', value: metrics.activity },
-    { key: '質問品質', value: metrics.questionQuality },
+    { key: '議会参加', value: metrics.participation },
+    { key: '発言品質', value: metrics.questionQuality },
     { key: '立法実績', value: metrics.legislation },
-    { key: '影響力', value: metrics.influence },
-    { key: '政策効果', value: metrics.impact }
+    { key: '政策実現', value: metrics.policyImpact },
+    { key: '影響力',   value: metrics.influence },
   ];
 
   return (

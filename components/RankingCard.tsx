@@ -16,7 +16,7 @@ const dramaTag = (rank: number) => {
 };
 
 export function RankingCard({ item, rank }: { item: Politician; rank: number }) {
-  const rankDelta = item.previousRank - rank;
+  const rankDelta = item.trend;
 
   if (item.isInactive) {
     return (
@@ -58,14 +58,16 @@ export function RankingCard({ item, rank }: { item: Politician; rank: number }) 
           <p className="text-[2.4rem] font-black leading-none sm:text-5xl">#{rank}</p>
           <p className="mt-1 text-lg font-black sm:text-xl">{item.name}</p>
           <p className="text-xs text-slate-300 sm:text-sm">
-            {item.party} · {item.age ? `${item.age}歳 · ` : ''}{item.gender === 'Male' ? '男性' : '女性'}
+            {item.party}
+            {item.age ? ` · ${item.age}歳` : ''}
+            {item.gender === 'Male' ? ' · 男性' : item.gender === 'Female' ? ' · 女性' : ''}
           </p>
         </div>
         <div className="text-right">
           <p className="text-[10px] uppercase tracking-widest text-slate-300">スコア</p>
           <p className="text-3xl font-black text-cyan-300 sm:text-4xl">{item.score.toFixed(1)}</p>
-          <p className={`mt-1 text-xs font-bold ${rankDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-            {rankDelta >= 0 ? `▲ +${rankDelta}` : `▼ ${rankDelta}`} 前サイクル比
+          <p className={`mt-1 text-xs font-bold ${rankDelta > 0 ? 'text-emerald-300' : rankDelta < 0 ? 'text-rose-300' : 'text-slate-400'}`}>
+            {rankDelta > 0 ? `▲ +${rankDelta}` : rankDelta < 0 ? `▼ ${rankDelta}` : '→ 変動なし'} 前サイクル比
           </p>
         </div>
       </div>

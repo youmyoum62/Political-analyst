@@ -1,6 +1,27 @@
 from datetime import date
+from typing import Generic, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict
+
+T = TypeVar("T")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    limit: int
+    offset: int
+    has_next: bool
+
+
+class HealthResponse(BaseModel):
+    status: str
+
+
+class PartyItem(BaseModel):
+    id: int
+    name_ja: str
+    abbreviation: Optional[str] = None
 
 
 class PoliticianListItem(BaseModel):
@@ -8,6 +29,7 @@ class PoliticianListItem(BaseModel):
     name: str
     party: str
     house: str
+    role_profile: str
 
 
 class PoliticianDetail(BaseModel):
@@ -15,20 +37,20 @@ class PoliticianDetail(BaseModel):
     name: str
     party: str
     house: str
-    district: str
-    age: int | None
-    gender: str | None
-    term_start: date | None
-    term_end: date | None
-    previous_rank: int | None
-    top_question: str | None
-    key_achievement: str | None
-    summary: str | None
-    activity_score: float
-    question_quality_score: float
+    district: Optional[str]
+    age: Optional[int]
+    gender: Optional[str]
+    role_profile: str
+    term_start: Optional[date]
+    term_end: Optional[date]
+    top_question: Optional[str]
+    key_achievement: Optional[str]
+    summary: Optional[str]
+    participation_score: float
+    quality_score: float
     legislative_score: float
-    influence_score: float
     policy_impact_score: float
+    influence_score: float
     final_score: float
 
 
@@ -38,34 +60,33 @@ class RankingItem(BaseModel):
     name: str
     party: str
     house: str
-    district: str
-    age: int | None
-    gender: str | None
-    previous_rank: int | None
-    top_question: str | None
-    key_achievement: str | None
-    summary: str | None
-    activity_score: float
-    question_quality_score: float
+    district: Optional[str]
+    age: Optional[int]
+    gender: Optional[str]
+    role_profile: str
+    top_question: Optional[str]
+    key_achievement: Optional[str]
+    summary: Optional[str]
+    participation_score: float
+    quality_score: float
     legislative_score: float
-    influence_score: float
     policy_impact_score: float
+    influence_score: float
     final_score: float
     trend: int
 
 
 class AnalysisDetail(BaseModel):
     politician_id: int
-    activity_score: float
-    question_quality_score: float
+    role_profile: str
+    participation_score: float
+    quality_score: float
     legislative_score: float
-    influence_score: float
     policy_impact_score: float
+    influence_score: float
     final_score: float
-
-
-class HealthResponse(BaseModel):
-    status: str
+    # 役割プロファイルの重みを返すことで透明性を確保
+    weights: dict[str, float]
 
 
 class ORMModel(BaseModel):
