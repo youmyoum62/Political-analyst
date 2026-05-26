@@ -8,10 +8,11 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
+      - key: DATABASE_URL
+        sync: false  # Supabase の接続文字列を Render ダッシュボードで設定
       - key: ADMIN_TOKEN
         generateValue: true
       - key: ALLOWED_ORIGINS
-        # フロントエンドのURLに合わせて更新してください
         value: https://political-analyst-ui.onrender.com
 
   # ── フロントエンド (Next.js) ────────────────────────────────────────────────

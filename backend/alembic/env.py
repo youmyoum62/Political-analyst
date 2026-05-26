@@ -20,24 +20,29 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
+    import os
+    url = os.getenv('DATABASE_URL') or config.get_main_option("sqlalchemy.url")
+    if url and url.startswith('postgres://'):
+        url = url.replace('postgres://', 'postgresql://', 1)
+    is_sqlite = (url or '').startswith('sqlite')
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=True,   # SQLite ALTER TABLE 対応
+        render_as_batch=is_sqlite,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
+    is_sqlite = engine.url.drivername.startswith('sqlite')
     with engine.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=True,   # SQLite ALTER TABLE 対応
+            render_as_batch=is_sqlite,
         )
         with context.begin_transaction():
             context.run_migrations()

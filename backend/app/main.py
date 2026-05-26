@@ -37,11 +37,13 @@ log = logging.getLogger(__name__)
 # ────────────────────────────────────────────────────────────────────────────
 
 def _ensure_schema() -> None:
+    # PostgreSQL: Dockerfile の "alembic upgrade head" がスキーマを管理するためスキップ
+    if not engine.url.drivername.startswith("sqlite"):
+        return
     insp = sa_inspect(engine)
     if insp.has_table("politicians"):
         cols = {c["name"] for c in insp.get_columns("politicians")}
         if "role_profile" not in cols:
-            # 旧スキーマ（role_profile カラムなし）を検出 → 全テーブルを再作成
             Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
