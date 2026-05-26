@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: political_score
+      POSTGRES_USER: political
+      POSTGRES_PASSWORD: political
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U political -d political_score']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://political:political@db:5432/political_score
+      ALLOWED_ORIGINS: http://localhost:3000
+      # OPENAI_API_KEY: <set via .env or shell>
+      # ANTHROPIC_API_KEY: <set via .env or shell>
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '8000:8000'
+    restart: on-failure
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    environment:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    depends_on:
+      - backend
+    ports:
+      - '3000:3000'
+    restart: on-failure
+
+volumes:
+  postgres_data:
