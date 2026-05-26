@@ -9,3 +9,5 @@ pytest==8.3.3
 requests==2.32.3
 anthropic>=0.40.0
 beautifulsoup4==4.12.3
+numpy>=1.26.0
+openai>=1.40.0

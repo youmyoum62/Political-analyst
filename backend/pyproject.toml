@@ -1,0 +1,11 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = ["alembic/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E712", "E501"]  # SQLAlchemy "== True" comparisons; long lines allowed
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F811"]

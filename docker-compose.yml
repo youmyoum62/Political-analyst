@@ -23,11 +23,15 @@ services:
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://political:political@db:5432/political_score
+      ALLOWED_ORIGINS: http://localhost:3000
+      # OPENAI_API_KEY: <set via .env or shell>
+      # ANTHROPIC_API_KEY: <set via .env or shell>
     depends_on:
       db:
         condition: service_healthy
     ports:
       - '8000:8000'
+    restart: on-failure
 
   frontend:
     build:
@@ -35,10 +39,12 @@ services:
       dockerfile: Dockerfile.frontend
     environment:
       NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_API_URL: http://backend:8000
     depends_on:
       - backend
     ports:
       - '3000:3000'
+    restart: on-failure
 
 volumes:
   postgres_data:

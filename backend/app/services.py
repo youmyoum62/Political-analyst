@@ -48,6 +48,7 @@ class PoliticianService:
             age=politician.age,
             gender=politician.gender,
             role_profile=politician.role_profile,
+            rank=self.repo.get_politician_rank(politician.id),
             term_start=politician.term_start,
             term_end=politician.term_end,
             top_question=politician.top_question,

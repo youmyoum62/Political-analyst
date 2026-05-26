@@ -1,7 +1,21 @@
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.models import Party, Politician, Score, ScoreComponent
+from app.models import IngestionRun, Party, Politician, Score, ScoreComponent
+
+
+class AdminRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def list_ingestion_runs(self, limit: int = 20) -> list[IngestionRun]:
+        return list(
+            self.db.scalars(
+                select(IngestionRun)
+                .order_by(IngestionRun.started_at.desc())
+                .limit(limit)
+            ).all()
+        )
 
 
 class PoliticianRepository:
@@ -29,6 +43,24 @@ class PoliticianRepository:
 
     def get_party(self, party_id: int) -> Party | None:
         return self.db.get(Party, party_id)
+
+    def get_politician_rank(self, politician_id: int) -> int | None:
+        """最新スナップショットでの rank_snapshot を返す。"""
+        from sqlalchemy import func
+        max_dt = self.db.scalar(
+            select(func.max(ScoreComponent.computed_at))
+            .where(ScoreComponent.politician_id == politician_id)
+        )
+        if max_dt is None:
+            return None
+        return self.db.scalar(
+            select(Score.rank_snapshot)
+            .join(ScoreComponent, ScoreComponent.id == Score.component_set_id)
+            .where(
+                ScoreComponent.politician_id == politician_id,
+                ScoreComponent.computed_at == max_dt,
+            )
+        )
 
     def get_latest_score_component(self, politician_id: int) -> ScoreComponent | None:
         stmt = (
@@ -77,6 +109,17 @@ class PoliticianRepository:
             .join(Score, Score.component_set_id == ScoreComponent.id)
             .where(Politician.is_active == True)  # noqa: E712
             .order_by(Score.final_score.desc(), Politician.id.asc())
+        )
+        return list(self.db.execute(stmt).all())
+
+    def get_score_history(self, politician_id: int, limit: int = 12) -> list[tuple]:
+        """議員のスコア履歴を古い順で返す (ScoreComponent, Score) のタプルリスト。"""
+        stmt = (
+            select(ScoreComponent, Score)
+            .join(Score, Score.component_set_id == ScoreComponent.id)
+            .where(ScoreComponent.politician_id == politician_id)
+            .order_by(ScoreComponent.computed_at.asc())
+            .limit(limit)
         )
         return list(self.db.execute(stmt).all())
 

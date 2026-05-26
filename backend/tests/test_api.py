@@ -15,7 +15,10 @@ RANKING_REQUIRED_KEYS = {
 def test_health() -> None:
     response = client.get('/health')
     assert response.status_code == 200
-    assert response.json() == {'status': 'ok'}
+    data = response.json()
+    assert data['status'] in ('ok', 'degraded')
+    assert data['db'] in ('connected', 'error')
+    assert isinstance(data['politicians_count'], int)
 
 
 def test_v1_ranking_returns_items() -> None:

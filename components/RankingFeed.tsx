@@ -6,13 +6,15 @@ import { useMemo, useState } from 'react';
 import { FilterBar } from '@/components/FilterBar';
 import { RankingCard } from '@/components/RankingCard';
 import { ShareCard } from '@/components/ShareCard';
-import { AgeGroup, filterPoliticians, getBiggestDrops, getParties, getRankedPoliticians, getRisingPoliticians } from '@/lib/api';
+import { AgeGroup, HouseFilter, filterPoliticians, getBiggestDrops, getParties, getRankedPoliticians, getRisingPoliticians } from '@/lib/api';
 import { Politician } from '@/lib/types';
 
 export function RankingFeed({ ranking }: { ranking: Politician[] }) {
   const [ageGroup, setAgeGroup] = useState<AgeGroup>('All');
   const [party, setParty] = useState('All');
   const [gender, setGender] = useState('All');
+  const [house, setHouse] = useState<HouseFilter>('All');
+  const [query, setQuery] = useState('');
   const [showInactive, setShowInactive] = useState(false);
 
   const sorted = useMemo(() => getRankedPoliticians(ranking), [ranking]);
@@ -20,8 +22,8 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
   const inactiveCount = useMemo(() => ranking.filter((p) => p.isInactive).length, [ranking]);
 
   const filtered = useMemo(
-    () => filterPoliticians(sorted, { ageGroup, party, gender, showInactive }),
-    [ageGroup, party, gender, showInactive, sorted]
+    () => filterPoliticians(sorted, { ageGroup, party, gender, house, query, showInactive }),
+    [ageGroup, party, gender, house, query, showInactive, sorted]
   );
 
   const rising = useMemo(() => getRisingPoliticians(ranking), [ranking]);
@@ -70,12 +72,16 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
         ageGroup={ageGroup}
         party={party}
         gender={gender}
+        house={house}
+        query={query}
         parties={parties}
         showInactive={showInactive}
         inactiveCount={inactiveCount}
         onAgeGroupChange={setAgeGroup}
         onPartyChange={setParty}
         onGenderChange={setGender}
+        onHouseChange={setHouse}
+        onQueryChange={setQuery}
         onShowInactiveChange={setShowInactive}
       />
 

@@ -1,6 +1,7 @@
 import { Politician } from '@/lib/types';
 
 export type AgeGroup = 'All' | '20s-30s' | '40s-50s' | '60+';
+export type HouseFilter = 'All' | 'representatives' | 'councillors';
 
 export function getRankedPoliticians(politicians: Politician[]): Politician[] {
   return [...politicians].sort((a, b) => b.score - a.score);
@@ -28,10 +29,21 @@ export function getBiggestDrops(
     .slice(0, limit);
 }
 
+export type FilterOptions = {
+  ageGroup: AgeGroup;
+  party: string;
+  gender: string;
+  house: HouseFilter;
+  query: string;
+  showInactive: boolean;
+};
+
 export function filterPoliticians(
   data: Politician[],
-  options: { ageGroup: AgeGroup; party: string; gender: string; showInactive: boolean },
+  options: FilterOptions,
 ): Politician[] {
+  const q = options.query.trim().toLowerCase();
+
   return data.filter((person) => {
     if (!options.showInactive && person.isInactive) return false;
 
@@ -43,8 +55,14 @@ export function filterPoliticians(
 
     const partyPass = options.party === 'All' || person.party === options.party;
     const genderPass = options.gender === 'All' || person.gender === options.gender;
+    const housePass = options.house === 'All' || person.house === options.house;
+    const queryPass =
+      q === '' ||
+      person.name.toLowerCase().includes(q) ||
+      person.party.toLowerCase().includes(q) ||
+      (person.district ?? '').toLowerCase().includes(q);
 
-    return ageGroupPass && partyPass && genderPass;
+    return ageGroupPass && partyPass && genderPass && housePass && queryPass;
   });
 }
 

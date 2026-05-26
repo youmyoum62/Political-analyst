@@ -14,10 +14,6 @@ class PaginatedResponse(BaseModel, Generic[T]):
     has_next: bool
 
 
-class HealthResponse(BaseModel):
-    status: str
-
-
 class PartyItem(BaseModel):
     id: int
     name_ja: str
@@ -41,6 +37,7 @@ class PoliticianDetail(BaseModel):
     age: Optional[int]
     gender: Optional[str]
     role_profile: str
+    rank: Optional[int] = None
     term_start: Optional[date]
     term_end: Optional[date]
     top_question: Optional[str]
@@ -87,6 +84,45 @@ class AnalysisDetail(BaseModel):
     final_score: float
     # 役割プロファイルの重みを返すことで透明性を確保
     weights: dict[str, float]
+
+
+class HealthResponse(BaseModel):
+    status: str
+    db: str = "unknown"
+    politicians_count: int = 0
+
+
+class ScoreHistoryPoint(BaseModel):
+    period_start: date
+    period_end: date
+    final_score: float
+    rank_snapshot: Optional[int]
+    computed_at: str
+
+
+class IngestionRunItem(BaseModel):
+    id: int
+    source_name: str
+    started_at: Optional[str]
+    finished_at: Optional[str]
+    status: str
+    records_seen: int
+    records_inserted: int
+    records_updated: int
+    records_failed: int
+    error_summary: Optional[str]
+
+
+class SnapshotTriggerRequest(BaseModel):
+    period_start: date
+    period_end: date
+
+
+class SnapshotTriggerResponse(BaseModel):
+    written: int
+    period_start: date
+    period_end: date
+    message: str
 
 
 class ORMModel(BaseModel):

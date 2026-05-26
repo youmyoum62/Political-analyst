@@ -1,23 +1,35 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from app.database import Base, SessionLocal, engine, get_db
-from app.repositories import PoliticianRepository
+from app.middleware import RequestLoggingMiddleware
+from app.repositories import AdminRepository, PoliticianRepository
 from app.schemas import (
     AnalysisDetail,
     HealthResponse,
+    IngestionRunItem,
     PaginatedResponse,
     PoliticianDetail,
     PoliticianListItem,
     RankingItem,
+    ScoreHistoryPoint,
+    SnapshotTriggerRequest,
+    SnapshotTriggerResponse,
 )
 from app.seed import seed_if_empty
 from app.services import PoliticianService
+
+log = logging.getLogger(__name__)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -46,11 +58,16 @@ async def lifespan(app: FastAPI):
 # アプリケーション設定
 # ────────────────────────────────────────────────────────────────────────────
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="Political Score API",
     version="1.0.0",
     lifespan=lifespan,
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(RequestLoggingMiddleware)
 
 # CORS: 環境変数で許可オリジンを指定（デフォルトは localhost:3000 のみ）
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
@@ -70,8 +87,24 @@ app.add_middleware(
 # ────────────────────────────────────────────────────────────────────────────
 
 @app.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
-    return HealthResponse(status="ok")
+def health(db: Session = Depends(get_db)) -> HealthResponse:
+    try:
+        from sqlalchemy import text as sa_text
+        db.execute(sa_text("SELECT 1"))
+        db_status = "connected"
+        from sqlalchemy import func as sa_func
+        from sqlalchemy import select as sa_select
+
+        from app.models import Politician
+        count = db.scalar(sa_select(sa_func.count()).select_from(Politician)) or 0
+    except Exception:
+        db_status = "error"
+        count = 0
+    return HealthResponse(
+        status="ok" if db_status == "connected" else "degraded",
+        db=db_status,
+        politicians_count=count,
+    )
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -82,7 +115,9 @@ v1 = APIRouter(prefix="/v1")
 
 
 @v1.get("/politicians", response_model=PaginatedResponse[PoliticianListItem])
+@limiter.limit("60/minute")
 def list_politicians(
+    request: Request,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -99,8 +134,9 @@ def list_politicians(
 
 
 @v1.get("/politicians/{politician_id}", response_model=PoliticianDetail)
+@limiter.limit("60/minute")
 def politician_detail(
-    politician_id: int, db: Session = Depends(get_db)
+    request: Request, politician_id: int, db: Session = Depends(get_db)
 ) -> PoliticianDetail:
     service = PoliticianService(PoliticianRepository(db))
     data = service.politician_detail(politician_id)
@@ -110,13 +146,36 @@ def politician_detail(
 
 
 @v1.get("/ranking", response_model=list[RankingItem])
-def ranking(db: Session = Depends(get_db)) -> list[RankingItem]:
+@limiter.limit("30/minute")
+def ranking(request: Request, db: Session = Depends(get_db)) -> list[RankingItem]:
     service = PoliticianService(PoliticianRepository(db))
     return service.ranking()
 
 
+@v1.get("/politicians/{politician_id}/score-history", response_model=list[ScoreHistoryPoint])
+@limiter.limit("60/minute")
+def score_history(
+    request: Request, politician_id: int, db: Session = Depends(get_db)
+) -> list[ScoreHistoryPoint]:
+    repo = PoliticianRepository(db)
+    if not repo.get_politician(politician_id):
+        raise HTTPException(status_code=404, detail="Politician not found")
+    rows = repo.get_score_history(politician_id)
+    return [
+        ScoreHistoryPoint(
+            period_start=sc.period_start,
+            period_end=sc.period_end,
+            final_score=score.final_score,
+            rank_snapshot=score.rank_snapshot,
+            computed_at=sc.computed_at.isoformat(),
+        )
+        for sc, score in rows
+    ]
+
+
 @v1.get("/analysis/{politician_id}", response_model=AnalysisDetail)
-def analysis(politician_id: int, db: Session = Depends(get_db)) -> AnalysisDetail:
+@limiter.limit("30/minute")
+def analysis(request: Request, politician_id: int, db: Session = Depends(get_db)) -> AnalysisDetail:
     service = PoliticianService(PoliticianRepository(db))
     data = service.analysis(politician_id)
     if data is None:
@@ -135,3 +194,71 @@ app.include_router(v1)
 def ranking_compat(db: Session = Depends(get_db)) -> list[RankingItem]:
     service = PoliticianService(PoliticianRepository(db))
     return service.ranking()
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# 管理者 API（Bearer token 認証）
+# ────────────────────────────────────────────────────────────────────────────
+
+_bearer = HTTPBearer(auto_error=True)
+_ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
+
+
+def _require_admin(creds: HTTPAuthorizationCredentials = Security(_bearer)) -> None:
+    if not _ADMIN_TOKEN:
+        raise HTTPException(status_code=503, detail="Admin API is disabled (ADMIN_TOKEN not set)")
+    if creds.credentials != _ADMIN_TOKEN:
+        raise HTTPException(status_code=403, detail="Invalid admin token")
+
+
+admin = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@admin.get("/ingestion-runs", response_model=list[IngestionRunItem])
+def list_ingestion_runs(
+    limit: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_admin),
+) -> list[IngestionRunItem]:
+    runs = AdminRepository(db).list_ingestion_runs(limit=limit)
+    return [
+        IngestionRunItem(
+            id=r.id,
+            source_name=r.source_name,
+            started_at=r.started_at.isoformat() if r.started_at else None,
+            finished_at=r.finished_at.isoformat() if r.finished_at else None,
+            status=r.status,
+            records_seen=r.records_seen,
+            records_inserted=r.records_inserted,
+            records_updated=r.records_updated,
+            records_failed=r.records_failed,
+            error_summary=r.error_summary,
+        )
+        for r in runs
+    ]
+
+
+@admin.post("/snapshot/trigger", response_model=SnapshotTriggerResponse)
+def trigger_snapshot(
+    body: SnapshotTriggerRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_admin),
+) -> SnapshotTriggerResponse:
+    from app.scoring.snapshot import recompute_snapshot
+    try:
+        written = recompute_snapshot(
+            db, period_start=body.period_start, period_end=body.period_end
+        )
+    except Exception as exc:
+        log.error("snapshot trigger failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return SnapshotTriggerResponse(
+        written=written,
+        period_start=body.period_start,
+        period_end=body.period_end,
+        message=f"{written} 件のスナップショットを書き込みました",
+    )
+
+
+app.include_router(admin)

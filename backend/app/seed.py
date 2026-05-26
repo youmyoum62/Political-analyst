@@ -11,7 +11,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import (
-    Party, Politician, WeightSet, ScoreComponent, Score,
+    Party,
+    Politician,
+    Score,
+    ScoreComponent,
+    WeightSet,
 )
 from app.scoring.calculator import ROLE_WEIGHTS, compute_final_score
 
