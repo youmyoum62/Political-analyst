@@ -1,0 +1,29 @@
+services:
+  # ── バックエンド (FastAPI) ──────────────────────────────────────────────────
+  - type: web
+    name: political-analyst-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        # フロントエンドのURLに合わせて更新してください
+        value: https://political-analyst-ui.onrender.com
+
+  # ── フロントエンド (Next.js) ────────────────────────────────────────────────
+  - type: web
+    name: political-analyst-ui
+    runtime: docker
+    dockerfilePath: ./Dockerfile.frontend
+    dockerContext: .
+    plan: free
+    buildArgs:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://political-analyst-api.onrender.com
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://political-analyst-api.onrender.com

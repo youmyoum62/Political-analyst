@@ -11,5 +11,5 @@ COPY alembic.ini ./alembic.ini
 
 EXPOSE 8000
 
-# マイグレーション実行後にサーバー起動
-CMD sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+# Render は PORT 環境変数でポートを注入する（ローカルは 8000 をデフォルト）
+CMD sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
