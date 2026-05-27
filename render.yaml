@@ -22,9 +22,6 @@ services:
     dockerfilePath: ./Dockerfile.frontend
     dockerContext: .
     plan: free
-    buildArgs:
-      - key: NEXT_PUBLIC_API_URL
-        value: https://political-analyst-api.onrender.com
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://political-analyst-api.onrender.com
