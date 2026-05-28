@@ -160,6 +160,7 @@ def run_ingest(
         run.status = "success"
     except Exception as exc:
         log.exception("インジェストパイプライン失敗")
+        db.rollback()
         run.status = "failure"
         run.error_summary = str(exc)[:500]
         raise
@@ -168,7 +169,10 @@ def run_ingest(
         run.records_seen = seen
         run.records_inserted = inserted
         run.records_failed = failed
-        db.commit()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
 
     return {
         "status": run.status,

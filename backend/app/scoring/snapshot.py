@@ -227,6 +227,7 @@ def recompute_snapshot(
         db.flush()  # component.id を確定
 
         score_row = Score(
+            politician_id=politician.id,
             component_set_id=component.id,
             final_score=scores["final_score"],
             rank_snapshot=None,  # ランク付けは後続処理で設定
