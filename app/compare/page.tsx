@@ -1,6 +1,8 @@
 import { CompareFeed } from '@/components/CompareFeed';
 import { fetchRanking } from '@/lib/api-client';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ComparePage() {
   const ranking = await fetchRanking();
 
