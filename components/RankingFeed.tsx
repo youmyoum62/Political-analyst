@@ -33,6 +33,18 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
   const inactiveFiltered = filtered.filter((p) => p.isInactive);
 
   const hero = activeFiltered[0] ?? sorted.find((p) => !p.isInactive) ?? sorted[0];
+
+  if (!hero) {
+    return (
+      <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
+        <h1 className="text-2xl font-black text-amber-100">ランキングデータがありません</h1>
+        <p className="mt-2 text-sm text-amber-100/80">
+          バックエンド API は空のランキングを返しました。代替データは表示していません。
+        </p>
+      </section>
+    );
+  }
+
   const heroRank = Math.max(1, sorted.findIndex((item) => item.id === hero.id) + 1);
 
   return (

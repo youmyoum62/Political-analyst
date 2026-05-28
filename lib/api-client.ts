@@ -1,11 +1,23 @@
 import { Gender, Politician, RoleProfile } from '@/lib/types';
 
-const API_BASE =
+export const API_BASE = (
   process.env.API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:8000';
+  'https://political-analyst-api.onrender.com'
+).replace(/\/+$/, '');
 
-// ─── Ranking ───────────────────────────────────────────────────────────────
+class ApiRequestError extends Error {
+  constructor(path: string, status: number, statusText: string) {
+    super(`API request failed: ${path} returned ${status} ${statusText}`);
+    this.name = 'ApiRequestError';
+  }
+}
+
+async function fetchJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 60 } });
+  if (!res.ok) throw new ApiRequestError(path, res.status, res.statusText);
+  return res.json();
+}
 
 type ApiRankingItem = {
   politician_id: number;
@@ -56,13 +68,10 @@ function rankingItemToPolitician(item: ApiRankingItem): Politician {
 }
 
 export async function fetchRanking(): Promise<Politician[]> {
-  const res = await fetch(`${API_BASE}/v1/ranking`, { next: { revalidate: 60 } });
-  if (!res.ok) throw new Error('ランキングの取得に失敗しました');
-  const data: ApiRankingItem[] = await res.json();
+  const data = await fetchJson<ApiRankingItem[]>('/v1/ranking');
+  if (!Array.isArray(data)) throw new Error('API response format error: /v1/ranking did not return an array');
   return data.map(rankingItemToPolitician);
 }
-
-// ─── Politician Detail ─────────────────────────────────────────────────────
 
 export type ApiPoliticianDetail = {
   id: number;
@@ -116,11 +125,9 @@ export function detailToPolitician(d: ApiPoliticianDetail): Politician {
 export async function fetchPoliticianDetail(id: number): Promise<ApiPoliticianDetail | null> {
   const res = await fetch(`${API_BASE}/v1/politicians/${id}`, { next: { revalidate: 60 } });
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error('議員詳細の取得に失敗しました');
+  if (!res.ok) throw new ApiRequestError(`/v1/politicians/${id}`, res.status, res.statusText);
   return res.json();
 }
-
-// ─── Analysis ─────────────────────────────────────────────────────────────
 
 export type ApiAnalysis = {
   politician_id: number;
@@ -143,11 +150,9 @@ export type ApiAnalysis = {
 export async function fetchAnalysis(id: number): Promise<ApiAnalysis | null> {
   const res = await fetch(`${API_BASE}/v1/analysis/${id}`, { next: { revalidate: 60 } });
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error('分析データの取得に失敗しました');
+  if (!res.ok) throw new ApiRequestError(`/v1/analysis/${id}`, res.status, res.statusText);
   return res.json();
 }
-
-// ─── Score History ─────────────────────────────────────────────────────────
 
 export type ApiScoreHistoryPoint = {
   period_start: string;
@@ -158,9 +163,9 @@ export type ApiScoreHistoryPoint = {
 };
 
 export async function fetchScoreHistory(id: number): Promise<ApiScoreHistoryPoint[]> {
-  const res = await fetch(`${API_BASE}/v1/politicians/${id}/score-history`, {
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) return [];
-  return res.json();
+  const data = await fetchJson<ApiScoreHistoryPoint[]>(`/v1/politicians/${id}/score-history`);
+  if (!Array.isArray(data)) {
+    throw new Error(`API response format error: /v1/politicians/${id}/score-history did not return an array`);
+  }
+  return data;
 }

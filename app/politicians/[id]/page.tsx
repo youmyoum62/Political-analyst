@@ -16,13 +16,13 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const politicianId = Number(id);
 
-  const [detail, analysis, history] = await Promise.all([
-    fetchPoliticianDetail(politicianId),
+  const detail = await fetchPoliticianDetail(politicianId);
+  if (!detail) notFound();
+
+  const [analysis, history] = await Promise.all([
     fetchAnalysis(politicianId),
     fetchScoreHistory(politicianId),
   ]);
-
-  if (!detail) notFound();
 
   const politician = detailToPolitician(detail);
   const rank = detail.rank ?? 1;

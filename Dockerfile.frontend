@@ -8,7 +8,7 @@ RUN npm ci
 COPY . .
 
 # Render / Vercel などでビルド時に API URL を注入する
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_API_URL=https://political-analyst-api.onrender.com
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build

@@ -9,6 +9,17 @@ export function CompareFeed({ ranking }: { ranking: Politician[] }) {
   const [leftId, setLeftId] = useState(ranking[0]?.id ?? 1);
   const [rightId, setRightId] = useState(ranking[1]?.id ?? 2);
 
+  if (ranking.length === 0) {
+    return (
+      <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
+        <h2 className="text-xl font-black text-amber-100">比較できるデータがありません</h2>
+        <p className="mt-2 text-sm text-amber-100/80">
+          バックエンド API は空のランキングを返しました。代替データは表示していません。
+        </p>
+      </section>
+    );
+  }
+
   const left = ranking.find((item) => item.id === leftId) ?? ranking[0];
   const right = ranking.find((item) => item.id === rightId) ?? ranking[1];
 
