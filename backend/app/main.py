@@ -37,8 +37,9 @@ log = logging.getLogger(__name__)
 # ────────────────────────────────────────────────────────────────────────────
 
 def _ensure_schema() -> None:
-    # PostgreSQL: Dockerfile の "alembic upgrade head" がスキーマを管理するためスキップ
     if not engine.url.drivername.startswith("sqlite"):
+        # PostgreSQL: alembic が管理するが、マイグレーション漏れの安全網として create_all も実行
+        Base.metadata.create_all(bind=engine, checkfirst=True)
         return
     insp = sa_inspect(engine)
     if insp.has_table("politicians"):
