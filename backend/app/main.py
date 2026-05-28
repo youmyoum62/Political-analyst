@@ -17,6 +17,8 @@ from app.repositories import AdminRepository, PoliticianRepository
 from app.schemas import (
     AnalysisDetail,
     HealthResponse,
+    IngestTriggerRequest,
+    IngestTriggerResponse,
     IngestionRunItem,
     PaginatedResponse,
     PoliticianDetail,
@@ -262,6 +264,41 @@ def trigger_snapshot(
         period_end=body.period_end,
         message=f"{written} 件のスナップショットを書き込みました",
     )
+
+
+@admin.post("/ingest/trigger", response_model=IngestTriggerResponse)
+def trigger_ingest(
+    body: IngestTriggerRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_admin),
+) -> IngestTriggerResponse:
+    from app.ingest.pipeline import run_ingest
+    try:
+        result = run_ingest(
+            db,
+            period_start=body.period_start,
+            period_end=body.period_end,
+            max_records_per_house=body.max_records_per_house,
+        )
+    except Exception as exc:
+        log.error("ingest trigger failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+    return IngestTriggerResponse(**result)
+
+
+@admin.delete("/seed-data", response_model=dict)
+def clear_seed_data(
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_admin),
+) -> dict:
+    """external_ref が NULL の議員（シードデータ）を削除する。"""
+    from app.models import Politician
+    rows = db.query(Politician).filter(Politician.external_ref == None).all()  # noqa: E711
+    count = len(rows)
+    for pol in rows:
+        db.delete(pol)
+    db.commit()
+    return {"deleted_politicians": count}
 
 
 app.include_router(admin)

@@ -125,5 +125,20 @@ class SnapshotTriggerResponse(BaseModel):
     message: str
 
 
+class IngestTriggerRequest(BaseModel):
+    period_start: Optional[date] = None
+    period_end: Optional[date] = None
+    max_records_per_house: int = 1000
+
+
+class IngestTriggerResponse(BaseModel):
+    status: str
+    period_start: str
+    period_end: str
+    records_seen: int
+    records_inserted: int
+    records_failed: int
+
+
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
