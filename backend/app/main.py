@@ -292,13 +292,10 @@ def clear_seed_data(
     _: None = Depends(_require_admin),
 ) -> dict:
     """external_ref が NULL の議員（シードデータ）を削除する。"""
-    from app.models import Politician
-    rows = db.query(Politician).filter(Politician.external_ref == None).all()  # noqa: E711
-    count = len(rows)
-    for pol in rows:
-        db.delete(pol)
+    from sqlalchemy import text
+    result = db.execute(text("DELETE FROM politicians WHERE external_ref IS NULL"))
     db.commit()
-    return {"deleted_politicians": count}
+    return {"deleted_politicians": result.rowcount}
 
 
 app.include_router(admin)
