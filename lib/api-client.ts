@@ -13,10 +13,22 @@ class ApiRequestError extends Error {
   }
 }
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 60 } });
-  if (!res.ok) throw new ApiRequestError(path, res.status, res.statusText);
-  return res.json();
+async function fetchJson<T>(path: string, attemptsLeft = 3): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  try {
+    const res = await fetch(url, {
+      next: { revalidate: 60 },
+      signal: AbortSignal.timeout(58_000), // Render free tier cold start ~34s
+    });
+    if (!res.ok) throw new ApiRequestError(path, res.status, res.statusText);
+    return res.json();
+  } catch (err) {
+    if (attemptsLeft > 1) {
+      await new Promise((r) => setTimeout(r, 2_000));
+      return fetchJson<T>(path, attemptsLeft - 1);
+    }
+    throw err;
+  }
 }
 
 type ApiRankingItem = {
