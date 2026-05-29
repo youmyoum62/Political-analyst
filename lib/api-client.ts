@@ -13,18 +13,16 @@ class ApiRequestError extends Error {
   }
 }
 
-async function fetchJson<T>(path: string, attemptsLeft = 3): Promise<T> {
+async function fetchJson<T>(path: string, attemptsLeft = 2): Promise<T> {
   const url = `${API_BASE}${path}`;
   try {
-    const res = await fetch(url, {
-      next: { revalidate: 60 },
-      signal: AbortSignal.timeout(58_000), // Render free tier cold start ~34s
-    });
+    // タイムアウトなし: Render がコールドスタート完了まで接続を保持する
+    const res = await fetch(url, { next: { revalidate: 60 } });
     if (!res.ok) throw new ApiRequestError(path, res.status, res.statusText);
     return res.json();
   } catch (err) {
     if (attemptsLeft > 1) {
-      await new Promise((r) => setTimeout(r, 2_000));
+      await new Promise((r) => setTimeout(r, 5_000));
       return fetchJson<T>(path, attemptsLeft - 1);
     }
     throw err;
