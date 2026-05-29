@@ -13,20 +13,44 @@ class ApiRequestError extends Error {
   }
 }
 
-async function fetchJson<T>(path: string, attemptsLeft = 2): Promise<T> {
-  const url = `${API_BASE}${path}`;
-  try {
-    // タイムアウトなし: Render がコールドスタート完了まで接続を保持する
-    const res = await fetch(url, { next: { revalidate: 60 } });
-    if (!res.ok) throw new ApiRequestError(path, res.status, res.statusText);
-    return res.json();
-  } catch (err) {
-    if (attemptsLeft > 1) {
-      await new Promise((r) => setTimeout(r, 5_000));
-      return fetchJson<T>(path, attemptsLeft - 1);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Render 無料プランのコールドスタート（実測 34〜104 秒）に耐えるリトライ付き fetch。
+ * - 5xx（起動中の 502/503/504 を含む）とネットワークエラーで再試行する
+ * - リトライ間隔を漸増させ、総待機時間を約 90 秒まで確保する
+ * - 4xx（404 等）は即座に返し、呼び出し側で処理させる
+ */
+async function fetchWithRetry(
+  url: string,
+  init?: RequestInit,
+  maxAttempts = 8,
+): Promise<Response> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(url, { next: { revalidate: 60 }, ...init });
+      if (res.status >= 500 && attempt < maxAttempts) {
+        await sleep(Math.min(3_000 * attempt, 15_000));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxAttempts) {
+        await sleep(Math.min(3_000 * attempt, 15_000));
+        continue;
+      }
+      throw err;
     }
-    throw err;
   }
+  throw lastErr;
+}
+
+async function fetchJson<T>(path: string): Promise<T> {
+  const res = await fetchWithRetry(`${API_BASE}${path}`);
+  if (!res.ok) throw new ApiRequestError(path, res.status, res.statusText);
+  return res.json();
 }
 
 type ApiRankingItem = {
@@ -133,7 +157,7 @@ export function detailToPolitician(d: ApiPoliticianDetail): Politician {
 }
 
 export async function fetchPoliticianDetail(id: number): Promise<ApiPoliticianDetail | null> {
-  const res = await fetch(`${API_BASE}/v1/politicians/${id}`, { next: { revalidate: 60 } });
+  const res = await fetchWithRetry(`${API_BASE}/v1/politicians/${id}`);
   if (res.status === 404) return null;
   if (!res.ok) throw new ApiRequestError(`/v1/politicians/${id}`, res.status, res.statusText);
   return res.json();
@@ -158,7 +182,7 @@ export type ApiAnalysis = {
 };
 
 export async function fetchAnalysis(id: number): Promise<ApiAnalysis | null> {
-  const res = await fetch(`${API_BASE}/v1/analysis/${id}`, { next: { revalidate: 60 } });
+  const res = await fetchWithRetry(`${API_BASE}/v1/analysis/${id}`);
   if (res.status === 404) return null;
   if (!res.ok) throw new ApiRequestError(`/v1/analysis/${id}`, res.status, res.statusText);
   return res.json();
@@ -197,10 +221,12 @@ export async function fetchActivities(
   if (opts?.limit) params.set('limit', String(opts.limit));
   if (opts?.type) params.set('type', opts.type);
   const query = params.toString() ? `?${params}` : '';
-  const res = await fetch(`${API_BASE}/v1/politicians/${id}/activities${query}`, {
-    next: { revalidate: 60 },
-    signal: AbortSignal.timeout(58_000),
-  });
-  if (!res.ok) return [];
-  return res.json();
+  // activities は補助データのため、失敗しても空配列で詳細ページの描画を止めない
+  try {
+    const res = await fetchWithRetry(`${API_BASE}/v1/politicians/${id}/activities${query}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
 }
