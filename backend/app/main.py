@@ -15,6 +15,7 @@ from app.database import Base, SessionLocal, engine, get_db
 from app.middleware import RequestLoggingMiddleware
 from app.repositories import AdminRepository, PoliticianRepository
 from app.schemas import (
+    ActivityItem,
     AnalysisDetail,
     HealthResponse,
     IngestTriggerRequest,
@@ -176,6 +177,22 @@ def score_history(
         )
         for sc, score in rows
     ]
+
+
+@v1.get("/politicians/{politician_id}/activities", response_model=list[ActivityItem])
+@limiter.limit("60/minute")
+def politician_activities(
+    request: Request,
+    politician_id: int,
+    limit: int = Query(default=5, ge=1, le=20),
+    type: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> list[ActivityItem]:
+    repo = PoliticianRepository(db)
+    if not repo.get_politician(politician_id):
+        raise HTTPException(status_code=404, detail="Politician not found")
+    service = PoliticianService(repo)
+    return service.get_activities(politician_id=politician_id, limit=limit, activity_type=type)
 
 
 @v1.get("/analysis/{politician_id}", response_model=AnalysisDetail)

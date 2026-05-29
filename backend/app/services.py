@@ -1,5 +1,5 @@
 from app.repositories import PoliticianRepository
-from app.schemas import AnalysisDetail, PoliticianDetail, PoliticianListItem, RankingItem
+from app.schemas import ActivityItem, AnalysisDetail, PoliticianDetail, PoliticianListItem, RankingItem
 from app.scoring.calculator import ROLE_WEIGHTS
 
 
@@ -100,6 +100,31 @@ class PoliticianService:
             )
 
         return ranking_items
+
+    def get_activities(
+        self,
+        politician_id: int,
+        limit: int = 10,
+        activity_type: str | None = None,
+    ) -> list[ActivityItem]:
+        rows = self.repo.get_activities(
+            politician_id=politician_id,
+            limit=limit,
+            activity_type=activity_type,
+        )
+        items: list[ActivityItem] = []
+        for activity, llm_eval in rows:
+            items.append(
+                ActivityItem(
+                    id=activity.id,
+                    activity_type=activity.activity_type,
+                    session_date=activity.session_date.isoformat(),
+                    content_text=activity.content_text,
+                    quality_score=llm_eval.quality_score if llm_eval else None,
+                    source_url=activity.source_url,
+                )
+            )
+        return items
 
     def analysis(self, politician_id: int) -> AnalysisDetail | None:
         politician = self.repo.get_politician(politician_id)

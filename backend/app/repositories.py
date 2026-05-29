@@ -1,7 +1,7 @@
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.models import IngestionRun, Party, Politician, Score, ScoreComponent
+from app.models import Activity, IngestionRun, LlmEvaluation, Party, Politician, Score, ScoreComponent
 
 
 class AdminRepository:
@@ -119,6 +119,30 @@ class PoliticianRepository:
             .join(Score, Score.component_set_id == ScoreComponent.id)
             .where(ScoreComponent.politician_id == politician_id)
             .order_by(ScoreComponent.computed_at.asc())
+            .limit(limit)
+        )
+        return list(self.db.execute(stmt).all())
+
+    def get_activities(
+        self,
+        politician_id: int,
+        limit: int = 10,
+        activity_type: str | None = None,
+    ) -> list[tuple]:
+        from sqlalchemy import nulls_last
+
+        conditions = [Activity.politician_id == politician_id]
+        if activity_type is not None:
+            conditions.append(Activity.activity_type == activity_type)
+
+        stmt = (
+            select(Activity, LlmEvaluation)
+            .outerjoin(LlmEvaluation, LlmEvaluation.activity_id == Activity.id)
+            .where(*conditions)
+            .order_by(
+                nulls_last(LlmEvaluation.quality_score.desc()),
+                Activity.session_date.desc(),
+            )
             .limit(limit)
         )
         return list(self.db.execute(stmt).all())

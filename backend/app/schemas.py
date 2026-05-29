@@ -140,5 +140,14 @@ class IngestTriggerResponse(BaseModel):
     records_failed: int
 
 
+class ActivityItem(BaseModel):
+    id: int
+    activity_type: str
+    session_date: str
+    content_text: Optional[str] = None
+    quality_score: Optional[float] = None
+    source_url: str
+
+
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -181,3 +181,28 @@ export async function fetchScoreHistory(id: number): Promise<ApiScoreHistoryPoin
   }
   return data;
 }
+
+export type ApiActivityItem = {
+  id: number;
+  activity_type: 'question' | 'speech' | 'attendance' | 'committee_action';
+  session_date: string;
+  content_text: string | null;
+  quality_score: number | null;
+  source_url: string;
+};
+
+export async function fetchActivities(
+  id: number,
+  opts?: { limit?: number; type?: string }
+): Promise<ApiActivityItem[]> {
+  const params = new URLSearchParams();
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  if (opts?.type) params.set('type', opts.type);
+  const query = params.toString() ? `?${params}` : '';
+  const res = await fetch(`${API_BASE}/v1/politicians/${id}/activities${query}`, {
+    next: { revalidate: 60 },
+    signal: AbortSignal.timeout(58_000),
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
