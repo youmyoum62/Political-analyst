@@ -11,6 +11,11 @@ from __future__ import annotations
 import hashlib
 
 
+def stable_hash(text: str) -> str:
+    """任意の文字列から決定的な64桁ハッシュ（sha256 先頭64桁）を生成する。"""
+    return hashlib.sha256(text.encode()).hexdigest()[:64]
+
+
 def speech_hash(speech_id: str) -> str:
     """NDL の speechID から決定的な source_hash（sha256 先頭64桁）を生成する。"""
-    return hashlib.sha256(speech_id.encode()).hexdigest()[:64]
+    return stable_hash(speech_id)
