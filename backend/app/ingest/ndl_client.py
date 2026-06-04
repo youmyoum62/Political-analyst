@@ -4,7 +4,6 @@ https://kokkai.ndl.go.jp/api.html
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 import time
 from dataclasses import dataclass
@@ -12,6 +11,9 @@ from datetime import date
 from typing import Iterator
 
 import requests
+
+from app.ingest.filters import is_person_name, is_procedural_speech
+from app.ingest.hashing import speech_hash
 
 log = logging.getLogger(__name__)
 
@@ -40,16 +42,20 @@ class SpeechRecord:
     speech_text: str
     url: str
     is_minister: bool
+    is_procedural: bool = False  # 議事進行の定型アナウンスか
 
     @property
     def activity_type(self) -> str:
+        # 進行アナウンスは活動量・品質母数に数えない committee_action に分類
+        if self.is_procedural:
+            return "committee_action"
         if any(kw in self.name_of_meeting for kw in _QUESTION_KEYWORDS):
             return "question"
         return "speech"
 
     @property
     def source_hash(self) -> str:
-        return hashlib.sha256(self.speech_id.encode()).hexdigest()[:64]
+        return speech_hash(self.speech_id)
 
     @property
     def session_date(self) -> date:
@@ -58,12 +64,16 @@ class SpeechRecord:
 
 def _parse_record(raw: dict) -> SpeechRecord | None:
     speaker = (raw.get("speaker") or "").strip()
-    if not speaker:
+    # 非人名（『会議録情報』や委員会名など）を弾き、ゴミ議員レコードを防ぐ
+    if not is_person_name(speaker):
         return None
     role = (raw.get("speakerRole") or "").strip()
     # 議員以外を除外（大臣は is_minister フラグがあるので残す）
     if any(skip in role for skip in _SKIP_ROLES) and not raw.get("isMinister"):
         return None
+    text = (raw.get("speech") or "")
+    # NDL は発言URLを speechURL で返す（旧 'url' フィールドは存在せず常に空だった）
+    url = (raw.get("speechURL") or raw.get("meetingURL") or "").strip()
     return SpeechRecord(
         speech_id=raw.get("speechID", ""),
         date_str=raw.get("date", ""),
@@ -72,9 +82,10 @@ def _parse_record(raw: dict) -> SpeechRecord | None:
         name_of_house=(raw.get("nameOfHouse") or "").strip(),
         name_of_meeting=(raw.get("nameOfMeeting") or "").strip(),
         speaker_role=role,
-        speech_text=(raw.get("speech") or "")[:3000],
-        url=(raw.get("url") or ""),
+        speech_text=text[:3000],
+        url=url,
         is_minister=bool(raw.get("isMinister")),
+        is_procedural=is_procedural_speech(text),
     )
 
 
@@ -83,6 +94,8 @@ class NdlClient:
         self._sleep = rate_sleep
         self._session = requests.Session()
         self._session.headers["Accept"] = "application/json"
+        # 取得が途中で打ち切られた（API障害等）場合に True。呼び出し側が partial 判定に使う。
+        self.incomplete = False
 
     def iter_speeches(
         self,
@@ -91,7 +104,7 @@ class NdlClient:
         name_of_house: str | None = None,
         limit: int = 1000,
     ) -> Iterator[SpeechRecord]:
-        """指定期間・院の発言レコードをページング取得する。"""
+        """指定期間・院の発言レコードをページング取得する（nextRecordPosition 駆動）。"""
         start = 1
         fetched = 0
         while fetched < limit:
@@ -112,6 +125,8 @@ class NdlClient:
                 data = resp.json()
             except Exception as exc:
                 log.error("NDL API error: %s", exc)
+                # 取りこぼしを success と誤記録しないよう不完全フラグを立てて中断
+                self.incomplete = True
                 break
 
             records = data.get("speechRecord") or []
@@ -120,8 +135,11 @@ class NdlClient:
                 if rec:
                     fetched += 1
                     yield rec
+                    if fetched >= limit:
+                        break
 
-            total = int(data.get("numberOfRecords") or 0)
-            if start + _PAGE_SIZE > total:
+            # NDL 公式推奨の nextRecordPosition でページング（無ければ終端）
+            next_pos = data.get("nextRecordPosition")
+            if not next_pos:
                 break
-            start += _PAGE_SIZE
+            start = int(next_pos)

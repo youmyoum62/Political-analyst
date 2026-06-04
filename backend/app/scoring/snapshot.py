@@ -16,7 +16,7 @@ from datetime import date
 from typing import Optional
 
 import numpy as np
-from sqlalchemy import func
+from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -45,6 +45,20 @@ def _p95(values: list[float]) -> float:
         return 1.0
     result = float(np.percentile(values, 95))
     return max(result, 1.0)
+
+
+def _count_crossparty_passed(db: Session, bill_ids: list[int]) -> int:
+    """成立法案のうち、提出者の所属会派が3党以上にまたがる件数を返す。"""
+    if not bill_ids:
+        return 0
+    rows = (
+        db.query(BillSponsor.bill_id, func.count(distinct(Politician.party_id)))
+        .join(Politician, Politician.id == BillSponsor.politician_id)
+        .filter(BillSponsor.bill_id.in_(set(bill_ids)))
+        .group_by(BillSponsor.bill_id)
+        .all()
+    )
+    return sum(1 for _bid, party_count in rows if (party_count or 0) >= 3)
 
 
 def _build_raw_metrics(politician_id: int, db: Session, period_start: date, period_end: date) -> RawMetrics:
@@ -116,6 +130,7 @@ def _build_raw_metrics(politician_id: int, db: Session, period_start: date, peri
         )
         .all()
     )
+    passed_bill_ids: list[int] = []
     for bill, sponsor in sponsored:
         if sponsor.sponsor_role == "primary":
             m.bills_primary += 1
@@ -127,9 +142,12 @@ def _build_raw_metrics(politician_id: int, db: Session, period_start: date, peri
                 m.bills_passed_co += 1
         if bill.status == "in_committee":
             m.bills_in_committee += 1
+        if bill.status == "passed":
+            passed_bill_ids.append(bill.id)
 
-    # 超党派成立法案: 実データ投入時に party 数を集計するクエリに置き換える
-    m.crossparty_bills_passed = 0
+    # 超党派成立法案: この議員が関与した成立法案のうち、提出者の所属会派が
+    # 3党以上にまたがるものを数える（bill_sponsors→politicians.party_id で会派を引く）。
+    m.crossparty_bills_passed = _count_crossparty_passed(db, passed_bill_ids)
 
     # 役職重み
     roles = (

@@ -35,6 +35,8 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.database import SessionLocal, engine
+from app.ingest.filters import is_procedural_speech
+from app.ingest.hashing import speech_hash
 from app.models import (
     Activity,
     Base,
@@ -246,15 +248,25 @@ def fetch_member_speeches(
             except ValueError:
                 session_date = date.today()
 
-            # 質問文を含む発言は "question" として分類
-            is_question = bool(
-                re.search(r"(か。|でしょうか|ますか|ですか)", text)
-                and "大臣" not in name and "長官" not in name
-            )
+            speech_id = (rec.get("speechID") or "").strip()
+            speech_url = (rec.get("speechURL") or rec.get("meetingURL") or "").strip()
+
+            # 議事進行の定型アナウンスは活動量・品質母数に数えない committee_action へ
+            if is_procedural_speech(text):
+                activity_type = "committee_action"
+            else:
+                is_question = bool(
+                    re.search(r"(か。|でしょうか|ますか|ですか)", text)
+                    and "大臣" not in name and "長官" not in name
+                )
+                activity_type = "question" if is_question else "speech"
+
             speeches.append({
                 "text": text, "meeting": meeting,
                 "session_date": session_date,
-                "activity_type": "question" if is_question else "speech",
+                "activity_type": activity_type,
+                "speech_id": speech_id,
+                "speech_url": speech_url,
             })
 
         next_pos = data.get("nextRecordPosition")
@@ -365,9 +377,14 @@ def _upsert_activities(
     inserted = skipped = 0
 
     for s in speeches:
-        source_hash = make_hash(
-            str(politician.id), str(s["session_date"]), s["text"][:200]
-        )
+        # source_hash は speechID 基準に統一（pipeline 経路と一致させ二重登録を防ぐ）
+        speech_id = s.get("speech_id") or ""
+        if speech_id:
+            source_hash = speech_hash(speech_id)
+        else:
+            source_hash = make_hash(
+                str(politician.id), str(s["session_date"]), s["text"][:200]
+            )
 
         existing = db.query(Activity).filter(Activity.source_hash == source_hash).first()
         if existing:
@@ -379,7 +396,7 @@ def _upsert_activities(
             ingestion_run_id=ingest_run.id,
             activity_type=s["activity_type"],
             session_date=s["session_date"],
-            source_url="https://kokkai.ndl.go.jp/",
+            source_url=s.get("speech_url") or "https://kokkai.ndl.go.jp/",
             source_hash=source_hash,
             content_text=s["text"][:4000],
         )

@@ -157,7 +157,10 @@ def run_ingest(
             recompute_snapshot(db, period_start, period_end)
             log.info("スコア再計算完了")
 
-        run.status = "success"
+        # NDL 側で取得が途中打ち切りになった場合は success でなく partial を記録
+        run.status = "partial" if client.incomplete else "success"
+        if client.incomplete:
+            run.error_summary = "NDL API取得が途中で打ち切られました（部分取得）"
     except Exception as exc:
         log.exception("インジェストパイプライン失敗")
         db.rollback()
