@@ -48,27 +48,31 @@ export function CompareFeed({ ranking }: { ranking: Politician[] }) {
       <section className="grid gap-4 lg:grid-cols-2">
         {[left, right].map((person, idx) => (
           <article key={person.id} className={`rounded-2xl border p-4 ${idx === 0 ? 'border-cyan-500/40 bg-cyan-500/10' : 'border-fuchsia-500/40 bg-fuchsia-500/10'}`}>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-300">{idx === 0 ? '左コーナー' : '右コーナー'}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-300">{idx === 0 ? '比較 A' : '比較 B'}</p>
             <h2 className="mt-2 text-3xl font-black">{person.name}</h2>
             <p className="text-sm text-slate-300">{person.party}</p>
             <p className="mt-2 text-5xl font-black">{person.score.toFixed(1)}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-300">暫定値</p>
             <RadarChart metrics={person.metrics} />
-            <p className="mt-3 text-sm font-semibold text-slate-100">主な実績: {person.keyAchievement}</p>
+            {person.keyAchievement && (
+              <p className="mt-3 text-sm font-semibold text-slate-100">主な実績: {person.keyAchievement}</p>
+            )}
           </article>
         ))}
       </section>
 
       <section className="rounded-2xl border border-slate-700 bg-slate-900/60 p-5 text-center">
-        <p className="text-sm uppercase tracking-[0.2em] text-slate-400">スコア差</p>
+        <p className="text-sm uppercase tracking-[0.2em] text-slate-400">暫定スコア差</p>
         <p className="mt-1 text-5xl font-black text-cyan-300">{diff > 0 ? '+' : ''}{diff.toFixed(1)}</p>
-        <p className="mt-2 text-sm text-slate-200">{diff >= 0 ? `${left?.name}がこのバトルをリードしています。` : `${right?.name}がこのバトルをリードしています。`}</p>
+        <p className="mt-2 text-sm text-slate-200">{diff >= 0 ? `暫定スコアが高いのは ${left?.name} です。` : `暫定スコアが高いのは ${right?.name} です。`}</p>
+        <p className="mt-1 text-xs text-slate-500">※ 出席・発言データ中心の暫定値です。確定的な優劣を示すものではありません。</p>
         <a
-          href={`https://x.com/intent/tweet?text=${encodeURIComponent(`バトル結果: ${left?.name} ${left?.score.toFixed(1)}点 vs ${right?.name} ${right?.score.toFixed(1)}点。あなたはどちらが勝つと思う？`)}`}
+          href={`https://x.com/intent/tweet?text=${encodeURIComponent(`${left?.name} ${left?.score.toFixed(1)}点 vs ${right?.name} ${right?.score.toFixed(1)}点（暫定値）。評価方法と出典はサイトをご確認ください。`)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-4 inline-flex rounded-full bg-black px-5 py-2 text-sm font-black text-white transition hover:bg-slate-800"
         >
-          Xでバトルをシェア
+          Xでシェア
         </a>
       </section>
     </>
