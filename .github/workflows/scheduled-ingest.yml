@@ -1,0 +1,64 @@
+name: Scheduled Ingest & Snapshot
+
+# 国会会議録のインジェストとスコア再計算を定期実行する。
+# 旧来の Windows タスクスケジューラ依存（schedule_setup.ps1 / run_ingest.bat）は
+# 本番(Render/Linux)で動かないため、これに置き換える。
+#
+# 必要な GitHub Secrets（リポジトリ Settings > Secrets and variables > Actions）:
+#   - ADMIN_TOKEN  : 本番 API の管理トークン（Render の同名環境変数と一致させる）。未設定なら自動スキップ。
+#   - API_BASE_URL : 任意。未設定時は https://political-analyst-api.onrender.com を使用。
+#
+# 注: schedule はリポジトリのデフォルトブランチ上のワークフローのみ起動する（= main）。
+
+on:
+  schedule:
+    - cron: "0 18 * * *"   # 毎日 03:00 JST（18:00 UTC）
+  workflow_dispatch: {}      # 手動実行も可能
+
+# 同時実行を抑止（重複インジェストを防ぐ）
+concurrency:
+  group: scheduled-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    name: Ingest & Snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger ingest and snapshot
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE="${API_BASE_URL:-https://political-analyst-api.onrender.com}"
+          if [ -z "${ADMIN_TOKEN:-}" ]; then
+            echo "::warning::ADMIN_TOKEN secret が未設定のためスキップしました。リポジトリ Settings > Secrets で ADMIN_TOKEN（任意で API_BASE_URL）を設定してください。"
+            exit 0
+          fi
+
+          START=$(date -u -d '90 days ago' +%F)
+          END=$(date -u +%F)
+          echo "対象期間: ${START} 〜 ${END} / API: ${BASE}"
+
+          echo "--- ウォームアップ（Render コールドスタート対策） ---"
+          for i in $(seq 1 10); do
+            if curl -fsS --max-time 30 "${BASE}/health" >/dev/null; then echo "health OK"; break; fi
+            echo "warming up... (${i})"; sleep 15
+          done
+
+          echo "--- インジェスト ---"
+          curl -fsS --max-time 600 -X POST "${BASE}/admin/ingest/trigger" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"period_start\":\"${START}\",\"period_end\":\"${END}\",\"max_records_per_house\":1000}"
+          echo ""
+
+          echo "--- スナップショット再計算 ---"
+          curl -fsS --max-time 600 -X POST "${BASE}/admin/snapshot/trigger" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"period_start\":\"${START}\",\"period_end\":\"${END}\"}"
+          echo ""
+
+          echo "完了"

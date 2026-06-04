@@ -12,9 +12,10 @@ services:
         sync: false  # Supabase の接続文字列を Render ダッシュボードで設定
       - key: ADMIN_TOKEN
         generateValue: true
-      # フロントエンドは Vercel に移行済み。
-      # ブラウザから直接 API を叩く実装を追加した場合は、ここに Vercel ドメイン
-      # （例: https://political-analyst.vercel.app）を追記すること。
-      # 現状はサーバー間通信のみのため CORS 設定は影響しない。
+      # 本番では OpenAPI ドキュメントを無効化する（main.py が APP_ENV を見る）
+      - key: APP_ENV
+        value: production
+      # 実フロントエンド（Vercel）ドメイン。ブラウザから直接 API を叩く実装を
+      # 追加した場合に CORS で許可するオリジン。現状はサーバー間通信のみ。
       - key: ALLOWED_ORIGINS
-        value: https://political-analyst-ui.onrender.com
+        value: https://political-analyst-s7s6.vercel.app

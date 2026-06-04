@@ -90,6 +90,8 @@ class HealthResponse(BaseModel):
     status: str
     db: str = "unknown"
     politicians_count: int = 0
+    last_ingest_at: str | None = None
+    last_ingest_status: str | None = None
 
 
 class ScoreHistoryPoint(BaseModel):

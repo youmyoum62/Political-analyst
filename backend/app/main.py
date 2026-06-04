@@ -1,5 +1,6 @@
 import logging
 import os
+import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Security
@@ -12,15 +13,16 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from app.database import Base, SessionLocal, engine, get_db
+from app.logging_config import configure_logging
 from app.middleware import RequestLoggingMiddleware
 from app.repositories import AdminRepository, PoliticianRepository
 from app.schemas import (
     ActivityItem,
     AnalysisDetail,
     HealthResponse,
+    IngestionRunItem,
     IngestTriggerRequest,
     IngestTriggerResponse,
-    IngestionRunItem,
     PaginatedResponse,
     PoliticianDetail,
     PoliticianListItem,
@@ -32,6 +34,7 @@ from app.schemas import (
 from app.seed import seed_if_empty
 from app.services import PoliticianService
 
+configure_logging()
 log = logging.getLogger(__name__)
 
 
@@ -66,14 +69,29 @@ async def lifespan(app: FastAPI):
 
 limiter = Limiter(key_func=get_remote_address)
 
+# 本番では OpenAPI ドキュメント（/docs, /redoc, /openapi.json）を無効化し
+# 管理エンドポイント仕様の事前開示を防ぐ。
+_APP_ENV = os.getenv("APP_ENV", "development").lower()
+_DOCS_ENABLED = _APP_ENV != "production"
+
 app = FastAPI(
     title="Political Score API",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs" if _DOCS_ENABLED else None,
+    redoc_url="/redoc" if _DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if _DOCS_ENABLED else None,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(RequestLoggingMiddleware)
+
+# Host ヘッダ検証（任意）。ALLOWED_HOSTS が設定された場合のみ有効化する。
+_allowed_hosts = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()]
+if _allowed_hosts:
+    from fastapi.middleware.trustedhost import TrustedHostMiddleware
+
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
 
 # CORS: 環境変数で許可オリジンを指定（デフォルトは localhost:3000 のみ）
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
@@ -106,10 +124,26 @@ def health(db: Session = Depends(get_db)) -> HealthResponse:
     except Exception:
         db_status = "error"
         count = 0
+
+    # データ鮮度: 最新インジェスト実行の時刻とステータスを露出する
+    last_ingest_at = None
+    last_ingest_status = None
+    try:
+        runs = AdminRepository(db).list_ingestion_runs(limit=1)
+        if runs:
+            r = runs[0]
+            ts = r.finished_at or r.started_at
+            last_ingest_at = ts.isoformat() if ts else None
+            last_ingest_status = r.status
+    except Exception:
+        pass
+
     return HealthResponse(
         status="ok" if db_status == "connected" else "degraded",
         db=db_status,
         politicians_count=count,
+        last_ingest_at=last_ingest_at,
+        last_ingest_status=last_ingest_status,
     )
 
 
@@ -229,7 +263,8 @@ _ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 def _require_admin(creds: HTTPAuthorizationCredentials = Security(_bearer)) -> None:
     if not _ADMIN_TOKEN:
         raise HTTPException(status_code=503, detail="Admin API is disabled (ADMIN_TOKEN not set)")
-    if creds.credentials != _ADMIN_TOKEN:
+    # タイミング攻撃を避けるため定数時間比較を用いる
+    if not secrets.compare_digest(creds.credentials, _ADMIN_TOKEN):
         raise HTTPException(status_code=403, detail="Invalid admin token")
 
 

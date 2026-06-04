@@ -1,5 +1,11 @@
 from app.repositories import PoliticianRepository
-from app.schemas import ActivityItem, AnalysisDetail, PoliticianDetail, PoliticianListItem, RankingItem
+from app.schemas import (
+    ActivityItem,
+    AnalysisDetail,
+    PoliticianDetail,
+    PoliticianListItem,
+    RankingItem,
+)
 from app.scoring.calculator import ROLE_WEIGHTS
 
 

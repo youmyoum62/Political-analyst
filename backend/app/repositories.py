@@ -1,7 +1,15 @@
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.models import Activity, IngestionRun, LlmEvaluation, Party, Politician, Score, ScoreComponent
+from app.models import (
+    Activity,
+    IngestionRun,
+    LlmEvaluation,
+    Party,
+    Politician,
+    Score,
+    ScoreComponent,
+)
 
 
 class AdminRepository:

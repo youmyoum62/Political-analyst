@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.database import SessionLocal, engine
-from app.models import Activity, Base, LlmEvaluation, Party, Politician, Score, ScoreComponent
+from app.models import Activity, Base, LlmEvaluation, Party, Politician, ScoreComponent
 
 # ─────────────────────────────────────────────
 # LLM クライアント選択
@@ -333,9 +333,9 @@ def main() -> None:
 
         if not args.dry_run:
             db.commit()
-            print(f"\nDB コミット完了")
+            print("\nDB コミット完了")
         else:
-            print(f"\n[DRY RUN] DB への書き込みはスキップしました")
+            print("\n[DRY RUN] DB への書き込みはスキップしました")
 
         print(
             f"\n完了: 処理={processed} 件 / スキップ={skipped} 件 / エラー={errors} 件\n"

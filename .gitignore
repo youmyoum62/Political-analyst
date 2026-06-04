@@ -30,6 +30,18 @@ env/
 *.sqlite
 *.sqlite3
 
+# Test / coverage / tooling caches
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Logs
+logs/
+*.log
+
 # OS
 .DS_Store
 Thumbs.db
