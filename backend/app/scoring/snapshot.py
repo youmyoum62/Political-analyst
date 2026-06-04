@@ -140,8 +140,10 @@ def _build_raw_metrics(politician_id: int, db: Session, period_start: date, peri
             m.bills_co_sponsored += 1
             if bill.status == "passed":
                 m.bills_passed_co += 1
-        if bill.status == "in_committee":
-            m.bills_in_committee += 1
+        elif sponsor.sponsor_role == "committee":
+            # 審議中の委員会付託のみ計上。primary/co とは排他にし二重計上を防ぐ
+            if bill.status == "in_committee":
+                m.bills_in_committee += 1
         if bill.status == "passed":
             passed_bill_ids.append(bill.id)
 
@@ -171,6 +173,7 @@ def _build_raw_metrics(politician_id: int, db: Session, period_start: date, peri
 def _build_norm_context(politician_ids: list[int], db: Session, period_start: date, period_end: date) -> NormContext:
     """対象議員全員の指標からp95正規化コンテキストを作る。"""
     speech_vals, question_vals, primary_vals, passed_vals = [], [], [], []
+    contribution_vals: list[float] = []
 
     for pid in politician_ids:
         m = _build_raw_metrics(pid, db, period_start, period_end)
@@ -178,12 +181,14 @@ def _build_norm_context(politician_ids: list[int], db: Session, period_start: da
         question_vals.append(float(m.question_count))
         primary_vals.append(float(m.bills_primary))
         passed_vals.append(float(m.bills_passed_primary + m.bills_passed_co))
+        contribution_vals.append(float(m.bills_passed_primary * 2 + m.bills_passed_co))
 
     return NormContext(
         speech_p95=_p95(speech_vals),
         question_p95=_p95(question_vals),
         bills_primary_p95=_p95(primary_vals),
         bills_passed_p95=_p95(passed_vals),
+        contribution_p95=_p95(contribution_vals),
         role_weight_p95=20.0,
     )
 
@@ -208,8 +213,14 @@ def recompute_snapshot(
         ws = db.query(WeightSet).order_by(WeightSet.id.desc()).first()
         weight_set_id = ws.id if ws else None
 
-    pids = [p.id for p in politicians]
-    ctx = _build_norm_context(pids, db, period_start, period_end)
+    # 院ごとに母集団を分けて正規化（衆参で発言・法案の機会構造が異なるため）
+    pids_by_house: dict[str, list[int]] = {}
+    for p in politicians:
+        pids_by_house.setdefault(p.house, []).append(p.id)
+    ctx_by_house = {
+        house: _build_norm_context(pids, db, period_start, period_end)
+        for house, pids in pids_by_house.items()
+    }
 
     written = 0
     for politician in politicians:
@@ -227,6 +238,7 @@ def recompute_snapshot(
             log.debug("スキップ (politician_id=%d, 既存レコード)", politician.id)
             continue
 
+        ctx = ctx_by_house[politician.house]
         m = _build_raw_metrics(politician.id, db, period_start, period_end)
         scores = compute_all_scores(m, ctx, politician.role_profile)
 

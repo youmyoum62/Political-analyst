@@ -77,6 +77,12 @@ class TestParticipationScore:
         m = RawMetrics(attendance_ratio=1.0, speech_count=9999, question_count=9999)
         assert compute_participation_score(m, self._ctx()) <= 100.0
 
+    def test_low_attendance_does_not_penalize_volume(self):
+        # 出席率0でも発言量の寄与(40%)は残る（旧実装は全体を0.5倍する二重罰だった）
+        m = RawMetrics(attendance_ratio=0.0, speech_count=100, question_count=100)
+        score = compute_participation_score(m, self._ctx())
+        assert score == pytest.approx(40.0, abs=0.1)
+
 
 # ─── compute_quality_score ────────────────────────────────────────────────
 
@@ -148,7 +154,7 @@ class TestLegislativeScore:
 
 class TestPolicyImpactScore:
     def _ctx(self):
-        return NormContext(bills_passed_p95=5.0)
+        return NormContext(bills_passed_p95=5.0, contribution_p95=10.0)
 
     def test_no_bills_returns_zero(self):
         m = RawMetrics()

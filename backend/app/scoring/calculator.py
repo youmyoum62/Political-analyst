@@ -10,8 +10,11 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Literal
+
+log = logging.getLogger(__name__)
 
 RoleProfile = Literal["opposition", "ruling", "cabinet", "parliamentary"]
 
@@ -107,6 +110,7 @@ class NormContext:
     question_p95: float = 1.0
     bills_primary_p95: float = 1.0
     bills_passed_p95: float = 1.0
+    contribution_p95: float = 1.0   # policy_impact 用（passed_primary*2 + passed_co のp95）
     role_weight_p95: float = 1.0
 
 
@@ -132,16 +136,19 @@ def compute_participation_score(m: RawMetrics, ctx: NormContext) -> float:
     """
     議会参加スコア: 出席率(60%) + 発言・質問量(40%)
     出席率70%未満は乗数ペナルティ（下限0.5倍）。
+
+    ペナルティは出席項のみに適用する（旧実装は全体に乗算しており、出席率が低い議員の
+    発言量部分まで不当に削る二重罰になっていた）。
     """
     volume_norm = winsorize_normalize(
         m.speech_count + m.question_count,
         ctx.speech_p95 + ctx.question_p95,
     )
-    attendance_pts = m.attendance_ratio * 100.0
-    raw = attendance_pts * 0.60 + volume_norm * 0.40
-
     penalty = max(0.5, m.attendance_ratio / 0.70) if m.attendance_ratio < 0.70 else 1.0
-    return round(min(100.0, raw * penalty), 2)
+    attendance_pts = m.attendance_ratio * 100.0 * penalty
+
+    raw = attendance_pts * 0.60 + volume_norm * 0.40
+    return round(min(100.0, raw), 2)
 
 
 def compute_quality_score(m: RawMetrics) -> float:
@@ -201,7 +208,10 @@ def compute_policy_impact_score(m: RawMetrics, ctx: NormContext) -> float:
       政策実現スコア = アウトカム（成立）× 政治的困難度（超党派）
     """
     contribution = m.bills_passed_primary * 2.0 + m.bills_passed_co * 1.0
-    base = winsorize_normalize(contribution, max(ctx.bills_passed_p95 * 2.0, 1.0))
+    # 専用の母集団統計（contribution の p95）で正規化する。
+    # 旧実装は bills_passed_p95（成立件数の単純合計のp95）×2 を分母にしており、
+    # primary/co の混在比率が議員ごとに異なると正規化基準が歪んでいた。
+    base = winsorize_normalize(contribution, ctx.contribution_p95)
 
     if m.crossparty_bills_passed >= 3:
         multiplier = 1.20
@@ -234,7 +244,11 @@ def compute_final_score(
     最終スコア: 役割プロファイルの重みで加重平均。
     すべての入力スコアは独立して計算済み（循環依存なし）。
     """
-    w = ROLE_WEIGHTS.get(role_profile, ROLE_WEIGHTS["ruling"])
+    w = ROLE_WEIGHTS.get(role_profile)
+    if w is None:
+        # サイレントに ruling 重みへすり替えず、誤分類を検知できるよう警告する
+        log.warning("未知の role_profile=%r のため ruling 重みで代用します", role_profile)
+        w = ROLE_WEIGHTS["ruling"]
     return round(
         participation * w["participation"]
         + quality     * w["quality"]
