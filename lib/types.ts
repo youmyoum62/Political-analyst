@@ -20,6 +20,7 @@ export type Politician = {
   house: 'representatives' | 'councillors';
   roleProfile: RoleProfile;
   score: number;
+  rank: number;
   trend: number;
   topQuestion: string;
   keyAchievement: string;

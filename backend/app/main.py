@@ -305,14 +305,52 @@ def trigger_ingest(
 
 @admin.delete("/seed-data", response_model=dict)
 def clear_seed_data(
+    confirm: bool = Query(default=False),
+    force: bool = Query(default=False),
     db: Session = Depends(get_db),
     _: None = Depends(_require_admin),
 ) -> dict:
-    """external_ref が NULL の議員（シードデータ）を削除する。"""
+    """
+    external_ref が NULL の議員（シードデモデータ）を削除する。
+
+    本番実データ誤削除を防ぐため:
+      - confirm=true を付けない限り削除せず dry-run（対象件数とサンプルを返す）。
+      - 対象が想定シード件数（10件）を超える場合は force=true がない限り 409 で中止。
+    """
     from sqlalchemy import text
+
+    SEED_EXPECTED_MAX = 10  # seed.py が投入するデモ議員数の上限
+
+    rows = db.execute(
+        text("SELECT id, name FROM politicians WHERE external_ref IS NULL ORDER BY id")
+    ).fetchall()
+    matched = len(rows)
+    sample = [{"id": r[0], "name": r[1]} for r in rows[:20]]
+
+    if not confirm:
+        return {
+            "dry_run": True,
+            "matched": matched,
+            "sample": sample,
+            "message": (
+                f"{matched}件が削除対象（external_ref IS NULL）。"
+                "実削除するには confirm=true を付与してください。"
+            ),
+        }
+
+    if matched > SEED_EXPECTED_MAX and not force:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"削除対象が{matched}件で想定シード上限{SEED_EXPECTED_MAX}件を超えています。"
+                "本番実データの誤削除を防ぐため中止しました。"
+                "意図的な場合は force=true を付与してください。"
+            ),
+        )
+
     result = db.execute(text("DELETE FROM politicians WHERE external_ref IS NULL"))
     db.commit()
-    return {"deleted_politicians": result.rowcount}
+    return {"dry_run": False, "deleted_politicians": result.rowcount}
 
 
 app.include_router(admin)

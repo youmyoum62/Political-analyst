@@ -149,16 +149,21 @@ def compute_quality_score(m: RawMetrics) -> float:
     発言品質スコア: LLM信頼度加重平均。
     最低3件未満は中立値50（サンプル不足の議員を不当に低評価しない）。
     閣僚は答弁テキストも評価対象に含める（ingestスクリプト側で制御）。
+
+    注: confidence=0 の評価（スタブ・失敗・信頼度ゼロ）は母数から除外する。
+        サンプル数判定も「有効評価（confidence>0）が3件以上か」で行い、
+        無評価の議員を“評価済み”として扱わない。
     """
     MIN_SAMPLE = 3
-    if len(m.llm_scores) < MIN_SAMPLE:
+    valid = [(q, c) for q, c in zip(m.llm_scores, m.llm_confidences) if c > 0.0]
+    if len(valid) < MIN_SAMPLE:
         return 50.0
 
-    total_weight = sum(m.llm_confidences)
+    total_weight = sum(c for _, c in valid)
     if total_weight == 0.0:
         return 50.0
 
-    weighted = sum(q * c for q, c in zip(m.llm_scores, m.llm_confidences))
+    weighted = sum(q * c for q, c in valid)
     return round(weighted / total_weight, 2)
 
 

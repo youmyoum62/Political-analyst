@@ -28,6 +28,8 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
 
   const rising = useMemo(() => getRisingPoliticians(ranking), [ranking]);
   const drops = useMemo(() => getBiggestDrops(ranking), [ranking]);
+  // スナップショットが2期以上たまり前回比の変動が存在する場合のみ trend 系UIを出す
+  const hasTrendData = useMemo(() => ranking.some((p) => p.trend !== 0), [ranking]);
 
   const activeFiltered = filtered.filter((p) => !p.isInactive);
   const inactiveFiltered = filtered.filter((p) => p.isInactive);
@@ -45,23 +47,32 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
     );
   }
 
-  const heroRank = Math.max(1, sorted.findIndex((item) => item.id === hero.id) + 1);
+  const heroRank = hero.rank || 1;
 
   return (
     <div className="space-y-6">
+      <section className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-4 text-sm text-amber-100">
+        <p className="font-bold">⚠ 暫定スコアについて</p>
+        <p className="mt-1 text-amber-100/90">
+          現在のスコアは<strong>出席・発言データを中心に算出した暫定値</strong>です。立法実績・政策実現・影響力・発言品質（AI評価）のデータは収集中で、多くの議員でまだ反映されていません。順位は確定的な評価ではありません。
+        </p>
+      </section>
+
       <section className="media-hero rounded-3xl p-5 sm:p-8">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-rose-400/50 bg-rose-500/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-rose-100">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-rose-300" />
-          速報ランク変動
-        </div>
-        <p className="text-xs uppercase tracking-[0.3em] text-cyan-200">政治スコアメディア</p>
+        {hasTrendData && (
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-rose-400/50 bg-rose-500/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-rose-100">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-rose-300" />
+            ランク変動あり
+          </div>
+        )}
+        <p className="text-xs uppercase tracking-[0.3em] text-cyan-200">国会活動スコア</p>
         <h1 className="mt-2 text-4xl font-black leading-[0.95] sm:text-6xl md:text-7xl">
           日本の政治
           <br />
           パワーボード
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-slate-100 sm:text-lg">
-          勝者・失速・衝撃の動きを一目で確認。即反応し、ライバルと比較して、あなたの評決を投稿しよう。
+          国会での質問・発言・出席などの活動を5つの軸で可視化。議員同士を比較して傾向を確認できます。
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link href="/compare" className="rounded-full bg-cyan-300 px-5 py-2 text-sm font-black text-slate-950 transition hover:scale-105">
@@ -74,9 +85,10 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
       </section>
 
       <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-100">今日の注目トピック</p>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-100">現在の暫定トップ</p>
         <p className="mt-2 text-lg font-bold sm:text-2xl">
-          #{heroRank} {hero.name}のスコアが<span className="text-cyan-300">{hero.score.toFixed(1)}点</span>となり、議論が白熱しています。あなたはこれを妥当だと思いますか？
+          暫定スコア #{heroRank} は {hero.name}（<span className="text-cyan-300">{hero.score.toFixed(1)}点</span>）です。
+          <span className="ml-1 text-sm font-normal text-amber-100/80">※出席・発言データ中心の暫定値</span>
         </p>
       </section>
 
@@ -107,8 +119,8 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {activeFiltered.map((item, idx) => (
-            <RankingCard key={item.id} item={item} rank={idx + 1} />
+          {activeFiltered.map((item) => (
+            <RankingCard key={item.id} item={item} rank={item.rank} showTrend={hasTrendData} />
           ))}
         </div>
       </section>
@@ -125,37 +137,55 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {inactiveFiltered.map((item, idx) => (
-              <RankingCard key={item.id} item={item} rank={activeFiltered.length + idx + 1} />
+            {inactiveFiltered.map((item) => (
+              <RankingCard key={item.id} item={item} rank={item.rank} showTrend={hasTrendData} />
             ))}
           </div>
         </section>
       )}
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4">
-          <h2 className="text-xl font-black">上昇中の政治家 🚀</h2>
-          <div className="mt-3 space-y-2 text-sm">
-            {rising.map((item) => (
-              <p key={item.id}>
-                <span className="font-bold">{item.name}</span> <span className="text-emerald-300">▲ +{item.rankDelta}位上昇</span>
-              </p>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-emerald-100/80">勢いのある話題はシェアを呼ぶ。次の更新前にあなたのピックを投稿しよう。</p>
-        </div>
+        {hasTrendData ? (
+          <>
+            <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4">
+              <h2 className="text-xl font-black">上昇中の政治家 🚀</h2>
+              <div className="mt-3 space-y-2 text-sm">
+                {rising.length > 0 ? (
+                  rising.map((item) => (
+                    <p key={item.id}>
+                      <span className="font-bold">{item.name}</span> <span className="text-emerald-300">▲ +{item.rankDelta}位上昇</span>
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-emerald-100/70">該当なし</p>
+                )}
+              </div>
+            </div>
 
-        <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4">
-          <h2 className="text-xl font-black">最大の急落 ⚠️</h2>
-          <div className="mt-3 space-y-2 text-sm">
-            {drops.map((item) => (
-              <p key={item.id}>
-                <span className="font-bold">{item.name}</span> <span className="text-rose-300">▼ {item.rankDelta}位下落</span>
-              </p>
-            ))}
+            <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4">
+              <h2 className="text-xl font-black">順位を下げた政治家</h2>
+              <div className="mt-3 space-y-2 text-sm">
+                {drops.length > 0 ? (
+                  drops.map((item) => (
+                    <p key={item.id}>
+                      <span className="font-bold">{item.name}</span> <span className="text-rose-300">▼ {item.rankDelta}位下落</span>
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-rose-100/70">該当なし</p>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 lg:col-span-2">
+            <h2 className="text-xl font-black">ランク変動（前回比）</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              スコアのスナップショットがまだ1期分のため、前回比の変動は集計できません。
+              データが2期以上たまると、上昇・下落の動きを表示します。
+            </p>
           </div>
-          <p className="mt-3 text-xs text-rose-100/80">急落は議論を呼ぶ。ランキングに異議を唱え、あなたの証拠をシェアしよう。</p>
-        </div>
+        )}
 
         <ShareCard politician={hero} rank={heroRank} />
       </section>

@@ -17,10 +17,14 @@ type Props = {
 };
 
 export function ScoreHistoryChart({ history }: Props) {
-  if (history.length === 0) {
+  // 折れ線として意味を持つには2期以上のスナップショットが必要
+  if (history.length < 2) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/60 text-sm text-slate-400">
-        スコア履歴がまだありません
+      <div className="flex h-48 flex-col items-center justify-center gap-1 rounded-2xl border border-slate-700 bg-slate-900/60 px-4 text-center text-sm text-slate-400">
+        <span>スコア推移はデータ蓄積中です</span>
+        <span className="text-xs text-slate-500">
+          推移グラフの表示には2期以上のスコアスナップショットが必要です（現在 {history.length} 期）。
+        </span>
       </div>
     );
   }

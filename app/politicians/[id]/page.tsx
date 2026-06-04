@@ -16,16 +16,15 @@ import {
   fetchScoreHistory,
 } from '@/lib/api-client';
 
+const ROLE_LABELS: Record<string, string> = {
+  opposition: '野党議員',
+  ruling: '与党議員',
+  cabinet: '閣僚・政務官',
+  parliamentary: '院内役職者',
+};
+
 function generateSummary(detail: ApiPoliticianDetail): string {
-  const profile =
-    (
-      {
-        opposition: '野党議員',
-        ruling: '与党議員',
-        cabinet: '閣僚・政務官',
-        parliamentary: '院内役職者',
-      } as Record<string, string>
-    )[detail.role_profile] ?? detail.role_profile;
+  const profile = ROLE_LABELS[detail.role_profile] ?? detail.role_profile;
 
   const scores = [
     { label: '議会参加', v: detail.participation_score },
@@ -37,7 +36,7 @@ function generateSummary(detail: ApiPoliticianDetail): string {
   const top = [...scores].sort((a, b) => b.v - a.v).slice(0, 2);
   const topStr = top.map((s) => `${s.label}（${s.v.toFixed(1)}点）`).join('・');
 
-  return `${profile}として、${topStr}が特に高評価。総合スコア${detail.final_score.toFixed(1)}点は、AIによる客観的な国会活動評価の結果です。`;
+  return `${profile}として、${topStr}が相対的に高めです。総合スコア${detail.final_score.toFixed(1)}点は、出席・発言データを中心に算出した暫定評価です。`;
 }
 
 function TopQuestionSection({
@@ -124,7 +123,15 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   const politician = detailToPolitician(detail);
   const rank = detail.rank ?? 1;
 
+  const hasRealSummary = Boolean(detail.summary);
   const summaryText = detail.summary || generateSummary(detail);
+
+  // データ未収集の評価軸（暫定スコアの透明性のため明示する）
+  const uncollectedAxes: string[] = [];
+  if (detail.legislative_score === 0) uncollectedAxes.push('立法実績');
+  if (detail.policy_impact_score === 0) uncollectedAxes.push('政策実現');
+  if (detail.influence_score === 0) uncollectedAxes.push('影響力');
+  if (detail.quality_score === 50) uncollectedAxes.push('発言品質（AI評価）');
 
   return (
     <div className="space-y-6">
@@ -145,11 +152,18 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         </p>
         <p className="mt-4 text-6xl font-black text-cyan-300">{detail.final_score.toFixed(1)}</p>
         <div className="mt-1 flex items-center gap-3 text-sm font-semibold text-slate-200">
-          <span>現在の順位 #{rank}</span>
-          <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-widest">
-            {detail.role_profile}
+          <span>暫定順位 #{rank}</span>
+          <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold tracking-wide">
+            {ROLE_LABELS[detail.role_profile] ?? detail.role_profile}
           </span>
         </div>
+
+        {uncollectedAxes.length > 0 && (
+          <p className="mt-4 rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-100">
+            ⚠ <strong>暫定スコア</strong>：このスコアは出席・発言データを中心に算出した暫定値です。
+            次の評価軸はデータ収集中で未反映です — {uncollectedAxes.join('・')}。
+          </p>
+        )}
       </section>
 
       {/* ── メインコンテンツ ── */}
@@ -164,6 +178,11 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
           <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
             <h3 className="text-lg font-black">このスコアが示すもの</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-300">{summaryText}</p>
+            {!hasRealSummary && (
+              <p className="mt-2 text-xs text-slate-500">
+                ※ AIによる評価プロフィールは生成待ちです。上記はスコアから自動表示した暫定説明であり、AI生成文ではありません。
+              </p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-indigo-400/40 bg-indigo-500/10 p-4">

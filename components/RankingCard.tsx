@@ -15,7 +15,15 @@ const dramaTag = (rank: number) => {
   return '注目候補';
 };
 
-export function RankingCard({ item, rank }: { item: Politician; rank: number }) {
+export function RankingCard({
+  item,
+  rank,
+  showTrend = false,
+}: {
+  item: Politician;
+  rank: number;
+  showTrend?: boolean;
+}) {
   const rankDelta = item.trend;
 
   if (item.isInactive) {
@@ -66,9 +74,11 @@ export function RankingCard({ item, rank }: { item: Politician; rank: number }) 
         <div className="text-right">
           <p className="text-[10px] uppercase tracking-widest text-slate-300">スコア</p>
           <p className="text-3xl font-black text-cyan-300 sm:text-4xl">{item.score.toFixed(1)}</p>
-          <p className={`mt-1 text-xs font-bold ${rankDelta > 0 ? 'text-emerald-300' : rankDelta < 0 ? 'text-rose-300' : 'text-slate-400'}`}>
-            {rankDelta > 0 ? `▲ +${rankDelta}` : rankDelta < 0 ? `▼ ${rankDelta}` : '→ 変動なし'} 前サイクル比
-          </p>
+          {showTrend && (
+            <p className={`mt-1 text-xs font-bold ${rankDelta > 0 ? 'text-emerald-300' : rankDelta < 0 ? 'text-rose-300' : 'text-slate-400'}`}>
+              {rankDelta > 0 ? `▲ +${rankDelta}` : rankDelta < 0 ? `▼ ${rankDelta}` : '→ 変動なし'} 前サイクル比
+            </p>
+          )}
         </div>
       </div>
 
