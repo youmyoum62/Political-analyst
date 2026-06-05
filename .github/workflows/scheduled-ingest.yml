@@ -1,19 +1,30 @@
 name: Scheduled Ingest & Snapshot
 
-# 国会会議録のインジェストとスコア再計算を定期実行する。
-# 旧来の Windows タスクスケジューラ依存（schedule_setup.ps1 / run_ingest.bat）は
-# 本番(Render/Linux)で動かないため、これに置き換える。
+# 国会会議録のインジェストとスコア再計算を GitHub Actions ランナー上で直接実行する。
 #
-# 必要な GitHub Secrets（リポジトリ Settings > Secrets and variables > Actions）:
-#   - ADMIN_TOKEN  : 本番 API の管理トークン（Render の同名環境変数と一致させる）。未設定なら自動スキップ。
-#   - API_BASE_URL : 任意。未設定時は https://political-analyst-api.onrender.com を使用。
+# 旧版は本番 API の /admin/ingest/trigger を curl で叩いていたが、その実装は
+# 同期処理（run_ingest 完走までレスポンスを返さない）で、Render 無料枠では
+# 10 分以上かかり curl/プロキシのタイムアウト（exit 28）で完走できなかった。
+# そこでランナー上で scripts/ingest.py を直接実行し、DATABASE_URL で
+# 本番 DB(Supabase) に直接書き込む方式に変更した（HTTP 非依存・最大 6 時間）。
 #
-# 注: schedule はリポジトリのデフォルトブランチ上のワークフローのみ起動する（= main）。
+# 必要な GitHub Secrets（Settings > Secrets and variables > Actions）:
+#   - DATABASE_URL   : Supabase 接続文字列（postgresql://...）。未設定なら自動スキップ。
+#   - OPENAI_API_KEY : 任意。設定時のみ LLM 品質評価も実行（未設定なら自動スキップ）。
+#
+# 注: schedule / workflow_dispatch はデフォルトブランチ(main)のワークフローで起動する。
 
 on:
   schedule:
     - cron: "0 18 * * *"   # 毎日 03:00 JST（18:00 UTC）
-  workflow_dispatch: {}      # 手動実行も可能
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "取込対象の過去日数"
+        default: "90"
+      limit:
+        description: "取込議員数の上限（0=無制限。初回テストは 30 など小さく）"
+        default: "0"
 
 # 同時実行を抑止（重複インジェストを防ぐ）
 concurrency:
@@ -24,41 +35,51 @@ jobs:
   ingest:
     name: Ingest & Snapshot
     runs-on: ubuntu-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
-      - name: Trigger ingest and snapshot
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+      - uses: actions/checkout@v4
+
+      - name: Guard - DATABASE_URL が必要
+        id: check
         run: |
           set -euo pipefail
-          BASE="${API_BASE_URL:-https://political-analyst-api.onrender.com}"
-          if [ -z "${ADMIN_TOKEN:-}" ]; then
-            echo "::warning::ADMIN_TOKEN secret が未設定のためスキップしました。リポジトリ Settings > Secrets で ADMIN_TOKEN（任意で API_BASE_URL）を設定してください。"
-            exit 0
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::warning::DATABASE_URL secret が未設定のためスキップしました。Settings > Secrets で DATABASE_URL（任意で OPENAI_API_KEY）を設定してください。"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
           fi
 
-          START=$(date -u -d '90 days ago' +%F)
-          END=$(date -u +%F)
-          echo "対象期間: ${START} 〜 ${END} / API: ${BASE}"
+      - name: Setup Python
+        if: steps.check.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
 
-          echo "--- ウォームアップ（Render コールドスタート対策） ---"
-          for i in $(seq 1 10); do
-            if curl -fsS --max-time 30 "${BASE}/health" >/dev/null; then echo "health OK"; break; fi
-            echo "warming up... (${i})"; sleep 15
-          done
+      - name: Install dependencies
+        if: steps.check.outputs.run == 'true'
+        run: pip install -r requirements.txt
 
-          echo "--- インジェスト ---"
-          curl -fsS --max-time 600 -X POST "${BASE}/admin/ingest/trigger" \
-            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"period_start\":\"${START}\",\"period_end\":\"${END}\",\"max_records_per_house\":1000}"
-          echo ""
-
-          echo "--- スナップショット再計算 ---"
-          curl -fsS --max-time 600 -X POST "${BASE}/admin/snapshot/trigger" \
-            -H "Authorization: Bearer ${ADMIN_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"period_start\":\"${START}\",\"period_end\":\"${END}\"}"
-          echo ""
-
+      - name: Ingest & snapshot
+        if: steps.check.outputs.run == 'true'
+        env:
+          INGEST_DAYS: ${{ github.event.inputs.days || '90' }}
+          INGEST_LIMIT: ${{ github.event.inputs.limit || '0' }}
+        run: |
+          set -euo pipefail
+          if [ -n "${OPENAI_API_KEY:-}" ]; then
+            echo "LLM 品質評価: 有効"
+          else
+            echo "LLM 品質評価: 無効（OPENAI_API_KEY 未設定）"
+          fi
+          echo "会議録インジェスト開始: days=${INGEST_DAYS} limit=${INGEST_LIMIT}"
+          python -m scripts.ingest --days "${INGEST_DAYS}" --limit "${INGEST_LIMIT}"
           echo "完了"
