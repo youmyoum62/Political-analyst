@@ -82,8 +82,9 @@ jobs:
           echo "--- 参院法案（参法のみ・hc-名前空間） ---"
           python scripts/ingest_sangiin_bills.py --since-kaiji "${SINCE_KAIJI}" ${DRY}
 
-          echo "--- 役職（委員会名簿） ---"
-          SANGIIN_ARGS=""
+          echo "--- 役職（衆委員会＋参委員会名簿） ---"
+          # 参委員会は一覧から自動巡回（--sangiin-auto）。追加URLがあれば個別指定も併用。
+          SANGIIN_ARGS="--sangiin-auto"
           if [ -n "${SANGIIN_URLS}" ]; then
             IFS=',' read -ra URLS <<< "${SANGIIN_URLS}"
             for u in "${URLS[@]}"; do

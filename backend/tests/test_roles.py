@@ -60,6 +60,29 @@ def test_parse_sangiin_committee():
     assert recs[0].start_date == "2026-06-03"
 
 
+def test_sangiin_roster_urls_extraction():
+    """参委員会インデックスから名簿(list/l*.htm)のみを絶対URLで重複なく抽出する。"""
+    index = (
+        "https://www.sangiin.go.jp/japanese/kon_kokkaijyoho/iinkai/tiinkai.html"
+    )
+    html = """
+    <html><body>
+      <a href="../../joho1/kousei/konkokkai/current/list/l0063.htm">内閣</a>
+      <a href="/japanese/joho1/kousei/konkokkai/current/list/l0064.htm">総務</a>
+      <a href="../../joho1/kousei/konkokkai/current/list/l0063.htm">内閣(重複)</a>
+      <a href="../../joho1/kousei/konkokkai/current/plist/p0063.htm">内閣(写真)</a>
+      <a href="/japanese/giin/giin.htm">議員一覧</a>
+      <a href="https://www.sangiin.go.jp/japanese/joho1/kousei/konkokkai/current/list/l0435.htm">特別委員会</a>
+    </body></html>
+    """
+    urls = rr.sangiin_roster_urls(html, index)
+    assert urls == [
+        "https://www.sangiin.go.jp/japanese/joho1/kousei/konkokkai/current/list/l0063.htm",
+        "https://www.sangiin.go.jp/japanese/joho1/kousei/konkokkai/current/list/l0064.htm",
+        "https://www.sangiin.go.jp/japanese/joho1/kousei/konkokkai/current/list/l0435.htm",
+    ]
+
+
 def test_special_committee_chair_role_name():
     html = _SHU_HTML.replace("内閣委員会", "政治改革に関する特別委員会")
     recs = rr.parse_shugiin_committee(html, _SHU_URL)

@@ -26,9 +26,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.database import SessionLocal  # noqa: E402
 from app.ingest.roles import (  # noqa: E402
+    SANGIIN_COMMITTEE_INDEX,
     ingest_roles,
     parse_sangiin_committee,
     parse_shugiin_committee,
+    sangiin_roster_urls,
 )
 
 SHU_LIST = "https://www.shugiin.go.jp/internet/itdb_iinkai.nsf/html/iinkai/list.htm"
@@ -65,15 +67,39 @@ def crawl_shugiin() -> list:
     return records
 
 
+def crawl_sangiin() -> list:
+    """参議院の今国会委員会一覧から各委員名簿を自動巡回して役職レコードを収集する。"""
+    index_html = _get(SANGIIN_COMMITTEE_INDEX, "utf-8")
+    urls = sangiin_roster_urls(index_html)
+    print(f"  参委員会一覧: {len(urls)} 委員会を検出")
+    records = []
+    for url in urls:
+        try:
+            recs = parse_sangiin_committee(_get(url, "utf-8"), url)
+            records.extend(recs)
+            print(f"  参 {url} -> {len(recs)}名")
+        except Exception as e:  # noqa: BLE001
+            print(f"  取得失敗 {url}: {e}")
+        time.sleep(1.0)
+    return records
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="役職(委員会名簿)インジェスト")
     ap.add_argument("--dry-run", action="store_true", help="DBへ書き込まず内訳を表示")
     ap.add_argument(
-        "--sangiin-url", action="append", default=[], help="参委員会ページURL（複数指定可）"
+        "--sangiin-auto",
+        action="store_true",
+        help="参委員会一覧から各名簿を自動巡回（衆と同様に全委員会を取得）",
+    )
+    ap.add_argument(
+        "--sangiin-url", action="append", default=[], help="参委員会ページURL（個別指定・複数可）"
     )
     args = ap.parse_args()
 
     records = crawl_shugiin()
+    if args.sangiin_auto:
+        records.extend(crawl_sangiin())
     for url in args.sangiin_url:
         try:
             records.extend(parse_sangiin_committee(_get(url, "utf-8"), url))

@@ -23,6 +23,7 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
@@ -96,6 +97,32 @@ def parse_shugiin_committee(html: str, source_url: str) -> list[RoleRecord]:
                 source_url=source_url,
             )
         )
+    return out
+
+
+# 参議院 今国会の委員会一覧（各委員会名簿 list/l*.htm へのリンク集）。
+SANGIIN_COMMITTEE_INDEX = (
+    "https://www.sangiin.go.jp/japanese/kon_kokkaijyoho/iinkai/tiinkai.html"
+)
+# 委員名簿ページ（写真版 plist/p*.htm は除外する）。
+_SAN_ROSTER_RE = re.compile(r"/konkokkai/current/list/l\d+\.htm$")
+
+
+def sangiin_roster_urls(
+    index_html: str, base_url: str = SANGIIN_COMMITTEE_INDEX
+) -> list[str]:
+    """参委員会インデックスHTMLから委員名簿(list/l*.htm)の絶対URLを重複なく返す。
+
+    href は相対表記でも urljoin で絶対化する。写真版(plist/p*.htm)は対象外。
+    """
+    soup = BeautifulSoup(index_html, "html.parser")
+    seen: set[str] = set()
+    out: list[str] = []
+    for a in soup.find_all("a", href=True):
+        full = urljoin(base_url, a["href"])
+        if _SAN_ROSTER_RE.search(full) and full not in seen:
+            seen.add(full)
+            out.append(full)
     return out
 
 
