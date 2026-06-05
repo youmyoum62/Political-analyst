@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { SiteFooter } from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
   title: '政治スコアメディア',
@@ -11,6 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ja">
       <body>
         <main className="mx-auto min-h-screen max-w-7xl px-6 py-8">{children}</main>
+        <SiteFooter />
       </body>
     </html>
   );

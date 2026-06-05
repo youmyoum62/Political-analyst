@@ -1,0 +1,84 @@
+/**
+ * 全ページ共通フッター。データ出典を明記する。
+ *
+ * 法案・議案データはスマートニュース メディア研究所「国会議案データベース」(MIT) に由来し、
+ * MIT ライセンス上クレジット表記が必要なため、ここで出典とライセンスを明示する。
+ */
+
+type Source = {
+  label: string;
+  detail: string;
+  links: { text: string; href: string }[];
+};
+
+const SOURCES: Source[] = [
+  {
+    label: '発言・会議データ',
+    detail: '国立国会図書館「国会会議録検索システム」API',
+    links: [{ text: 'kokkai.ndl.go.jp', href: 'https://kokkai.ndl.go.jp/' }],
+  },
+  {
+    label: '法案・議案データ',
+    detail:
+      'スマートニュース メディア研究所「国会議案データベース」（MIT License）。一次情報は衆議院・参議院 公式「議案情報」。',
+    links: [
+      {
+        text: '衆議院データ',
+        href: 'https://github.com/smartnews-smri/house-of-representatives',
+      },
+      {
+        text: '参議院データ',
+        href: 'https://github.com/smartnews-smri/house-of-councillors',
+      },
+    ],
+  },
+  {
+    label: '役職・委員会名簿',
+    detail: '衆議院・参議院 公式サイト（委員会名簿）',
+    links: [
+      { text: '衆議院', href: 'https://www.shugiin.go.jp/' },
+      { text: '参議院', href: 'https://www.sangiin.go.jp/' },
+    ],
+  },
+];
+
+export function SiteFooter() {
+  return (
+    <footer className="mx-auto mt-12 max-w-7xl border-t border-slate-800 px-6 py-8 text-xs text-slate-400">
+      <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-slate-300">
+        データ出典
+      </h2>
+      <ul className="mt-3 space-y-3">
+        {SOURCES.map((s) => (
+          <li key={s.label}>
+            <span className="font-semibold text-slate-200">{s.label}：</span>
+            <span>{s.detail}</span>
+            {s.links.length > 0 && (
+              <span className="ml-1">
+                （
+                {s.links.map((l, i) => (
+                  <span key={l.href}>
+                    {i > 0 && '・'}
+                    <a
+                      href={l.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-cyan-400 underline-offset-2 hover:underline"
+                    >
+                      {l.text}
+                    </a>
+                  </span>
+                ))}
+                ）
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-slate-500">
+        スコアは公開データを基に当サイトが独自に算出した暫定値であり、各データ提供元の見解を示すものではありません。
+        法案データの利用にあたり「スマートニュース メディア研究所」をデータ提供元として表示しています。
+      </p>
+    </footer>
+  );
+}
