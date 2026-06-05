@@ -210,6 +210,11 @@ def ingest_shugiin_bills(
     pol_index = _build_politician_index(db)
 
     inserted = updated = sponsor_links = unmatched = processed = 0
+    # 同一実行内で追加済みの sponsor 複合キー (bill_id, politician_id, sponsor_role)。
+    # autoflush=False のため DB の exists 照会では未コミットの pending 行が見えず、
+    # CSV に同一 bill_code が複数回現れると同じ複合PKを二重 add して flush 時に
+    # UniqueViolation で落ちる。実行内の重複はこの集合で捕捉する。
+    seen_sponsors: set[tuple[int, int, str]] = set()
 
     for raw in rows:
         if since_kaiji is not None:
@@ -251,6 +256,9 @@ def ingest_shugiin_bills(
                 if not pid:
                     unmatched += 1
                     continue
+                key = (bill.id, pid, role)
+                if key in seen_sponsors:
+                    continue
                 exists = (
                     db.query(BillSponsor)
                     .filter_by(bill_id=bill.id, politician_id=pid, sponsor_role=role)
@@ -263,6 +271,7 @@ def ingest_shugiin_bills(
                         )
                     )
                     sponsor_links += 1
+                seen_sponsors.add(key)
 
         processed += 1
         if limit is not None and processed >= limit:

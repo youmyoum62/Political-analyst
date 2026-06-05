@@ -155,6 +155,10 @@ def ingest_sangiin_bills(
     idx = _councillor_index(db)
 
     inserted = updated = sponsor_links = unmatched = processed = 0
+    # 実行内で追加済みの sponsor 複合キー。autoflush=False のため DB の exists 照会では
+    # 未コミット行が見えず、同一 bill_code が CSV に複数回現れると複合PK重複で flush が
+    # 失敗する（衆院側と同じ対策）。
+    seen_sponsors: set[tuple[int, int, str]] = set()
 
     for raw in rows:
         if since_kaiji is not None:
@@ -195,6 +199,9 @@ def ingest_sangiin_bills(
             if not pid:
                 unmatched += 1
                 continue
+            key = (bill.id, pid, "primary")
+            if key in seen_sponsors:
+                continue
             exists = (
                 db.query(BillSponsor)
                 .filter_by(bill_id=bill.id, politician_id=pid, sponsor_role="primary")
@@ -207,6 +214,7 @@ def ingest_sangiin_bills(
                     )
                 )
                 sponsor_links += 1
+            seen_sponsors.add(key)
 
         processed += 1
         if limit is not None and processed >= limit:
