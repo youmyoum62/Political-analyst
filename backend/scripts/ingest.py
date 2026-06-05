@@ -27,6 +27,7 @@ import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -120,33 +121,79 @@ def _parse_table_rows(soup: BeautifulSoup, min_cols: int) -> list[list[str]]:
     return all_rows
 
 
-def fetch_shugiin_members() -> list[dict]:
-    print("  衆議院議員リストを取得中 ...")
-    try:
-        resp = requests.get(SHUGIIN_URL, headers=BOT_HEADERS, timeout=30)
-        resp.raise_for_status()
-        resp.encoding = resp.apparent_encoding
-        soup = BeautifulSoup(resp.text, "html.parser")
-    except Exception as e:
-        print(f"  [警告] 衆議院サイト取得失敗: {e}")
-        return []
+_SHUGIIN_HEADER_PATTERNS = {"氏名", "姓名", "ふりがな", "会派", "選挙区", "当選回数"}
+_SHUGIIN_PAGE_RE = re.compile(r"\d+giin\.htm$")
 
-    HEADER_PATTERNS = {"氏名", "姓名", "ふりがな", "会派", "選挙区", "当選回数"}
+
+def _shugiin_page_urls(index_html: str, base_url: str = SHUGIIN_URL) -> list[str]:
+    """衆議院議員名簿の全ページURL（五十音分割の Ngiin.htm）を重複なく返す。
+
+    名簿は 1giin.htm〜Ngiin.htm に分割され、各ページに全ページへのリンクがある。
+    index 自身が含まれない場合に備え base_url を先頭に必ず含める。
+    """
+    soup = BeautifulSoup(index_html, "html.parser")
+    seen: set[str] = set()
+    out: list[str] = []
+    for a in soup.find_all("a", href=True):
+        full = urljoin(base_url, a["href"])
+        if _SHUGIIN_PAGE_RE.search(full) and full not in seen:
+            seen.add(full)
+            out.append(full)
+    if base_url not in seen:
+        out.insert(0, base_url)
+    return out
+
+
+def _parse_shugiin_page(html: str) -> list[dict]:
+    """衆議院議員名簿1ページ分のHTMLを議員dictのリストに変換する。"""
+    soup = BeautifulSoup(html, "html.parser")
     members: list[dict] = []
     for cells in _parse_table_rows(soup, min_cols=5):
         name = re.sub(r"[\s　君@]", "", cells[0])
         party_raw = cells[2].strip()
         district = cells[3].strip()
-        if not name or name in HEADER_PATTERNS or name.startswith("氏名"):
+        if not name or name in _SHUGIIN_HEADER_PATTERNS or name.startswith("氏名"):
             continue
-        if not party_raw or party_raw in HEADER_PATTERNS:
+        if not party_raw or party_raw in _SHUGIIN_HEADER_PATTERNS:
             continue
         party = normalize_party(party_raw)
         members.append({
             "name": name, "party": party, "house": "representatives",
             "district": district, "gender": None, "age": None,
         })
-    print(f"  → 衆議院: {len(members)} 名")
+    return members
+
+
+def fetch_shugiin_members() -> list[dict]:
+    print("  衆議院議員リストを取得中 ...")
+    try:
+        resp = requests.get(SHUGIIN_URL, headers=BOT_HEADERS, timeout=30)
+        resp.raise_for_status()
+        resp.encoding = resp.apparent_encoding
+        index_html = resp.text
+    except Exception as e:
+        print(f"  [警告] 衆議院サイト取得失敗: {e}")
+        return []
+
+    page_urls = _shugiin_page_urls(index_html)
+    by_name: dict[str, dict] = {}
+    for url in page_urls:
+        try:
+            if url == SHUGIIN_URL:
+                html = index_html
+            else:
+                r = requests.get(url, headers=BOT_HEADERS, timeout=30)
+                r.raise_for_status()
+                r.encoding = r.apparent_encoding
+                html = r.text
+                time.sleep(REQUEST_INTERVAL)
+            for m in _parse_shugiin_page(html):
+                by_name.setdefault(m["name"], m)
+        except Exception as e:  # noqa: BLE001
+            print(f"  [警告] 衆議院ページ取得失敗 {url}: {e}")
+
+    members = list(by_name.values())
+    print(f"  → 衆議院: {len(members)} 名（{len(page_urls)} ページ巡回）")
     return members
 
 

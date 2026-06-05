@@ -159,6 +159,51 @@ def test_iter_speeches_marks_incomplete_on_error(monkeypatch):
     assert client.incomplete is True
 
 
+# ── 衆議院議員名簿 全ページ巡回（house 取りこぼし回帰） ──────────────────────
+
+def test_shugiin_page_urls_collects_all_pages_dedup():
+    from scripts.ingest import SHUGIIN_URL, _shugiin_page_urls
+
+    html = """
+    <html><body>
+      <a href="1giin.htm">1</a>
+      <a href="2giin.htm">2</a>
+      <a href="10giin.htm">10</a>
+      <a href="profile/001.html">議員プロフィール</a>
+      <a href="1giin.htm">重複</a>
+    </body></html>
+    """
+    urls = _shugiin_page_urls(html, SHUGIIN_URL)
+    # index(=1giin.htm) を先頭に含み、profile は除外、重複なし
+    assert urls[0] == SHUGIIN_URL
+    assert [u.split("/")[-1] for u in urls] == ["1giin.htm", "2giin.htm", "10giin.htm"]
+
+
+def test_shugiin_page_urls_prepends_index_when_not_linked():
+    from scripts.ingest import SHUGIIN_URL, _shugiin_page_urls
+
+    html = '<a href="2giin.htm">2</a>'
+    urls = _shugiin_page_urls(html, SHUGIIN_URL)
+    assert urls[0] == SHUGIIN_URL  # 自分自身へのリンクが無くても必ず巡回対象に含む
+    assert urls[1].endswith("2giin.htm")
+
+
+def test_parse_shugiin_page_extracts_members_and_skips_header():
+    from scripts.ingest import _parse_shugiin_page
+
+    html = """
+    <table>
+    <tr><td>氏名</td><td>よみがな</td><td>会派</td><td>選挙区</td><td>当選</td></tr>
+    <tr><td>逢沢　一郎君</td><td>あいさわ</td><td>自由民主党</td><td>岡山1</td><td>13</td></tr>
+    <tr><td>青柳仁士</td><td>あおやぎ</td><td>日本維新の会</td><td>大阪14</td><td>2</td></tr>
+    </table>
+    """
+    members = _parse_shugiin_page(html)
+    assert [m["name"] for m in members] == ["逢沢一郎", "青柳仁士"]  # 君・空白除去、ヘッダ除外
+    assert all(m["house"] == "representatives" for m in members)
+    assert members[0]["district"] == "岡山1"
+
+
 # ── snapshot crossparty ──────────────────────────────────────────────────
 
 def test_count_crossparty_passed():
