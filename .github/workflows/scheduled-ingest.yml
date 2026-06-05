@@ -25,6 +25,10 @@ on:
       limit:
         description: "取込議員数の上限（0=無制限。初回テストは 30 など小さく）"
         default: "0"
+      roster_only:
+        description: "名簿の更新と過去議員の無効化のみ（発言取得をスキップ・高速）"
+        type: boolean
+        default: false
 
 # 同時実行を抑止（重複インジェストを防ぐ）
 concurrency:
@@ -73,13 +77,19 @@ jobs:
         env:
           INGEST_DAYS: ${{ github.event.inputs.days || '90' }}
           INGEST_LIMIT: ${{ github.event.inputs.limit || '0' }}
+          ROSTER_ONLY: ${{ github.event.inputs.roster_only }}
         run: |
           set -euo pipefail
-          if [ -n "${OPENAI_API_KEY:-}" ]; then
-            echo "LLM 品質評価: 有効"
+          if [ "${ROSTER_ONLY}" = "true" ]; then
+            echo "名簿のみ更新（roster-only）: 発言取得・LLM・再計算はスキップ"
+            python -m scripts.ingest --roster-only
           else
-            echo "LLM 品質評価: 無効（OPENAI_API_KEY 未設定）"
+            if [ -n "${OPENAI_API_KEY:-}" ]; then
+              echo "LLM 品質評価: 有効"
+            else
+              echo "LLM 品質評価: 無効（OPENAI_API_KEY 未設定）"
+            fi
+            echo "会議録インジェスト開始: days=${INGEST_DAYS} limit=${INGEST_LIMIT}"
+            python -m scripts.ingest --days "${INGEST_DAYS}" --limit "${INGEST_LIMIT}"
           fi
-          echo "会議録インジェスト開始: days=${INGEST_DAYS} limit=${INGEST_LIMIT}"
-          python -m scripts.ingest --days "${INGEST_DAYS}" --limit "${INGEST_LIMIT}"
           echo "完了"

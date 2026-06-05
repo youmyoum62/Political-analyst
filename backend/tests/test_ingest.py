@@ -204,6 +204,53 @@ def test_parse_shugiin_page_extracts_members_and_skips_header():
     assert members[0]["district"] == "岡山1"
 
 
+# ── 過去議員の is_active 無効化（現職のみ表示） ─────────────────────────────
+
+def test_deactivate_former_members(tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app import models  # noqa: F401
+    from app.database import Base
+    from app.models import Party, Politician
+    from scripts.ingest import _deactivate_former_members
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'deact.db'}", connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(bind=engine)()
+    try:
+        party = Party(name_ja="自民", abbreviation="自民")
+        db.add(party)
+        db.flush()
+        # 現職: 現一郎(衆)・参子(参)  / 過去: 元三郎(衆, 名簿に無い)
+        for nm, house in [("現一郎", "representatives"), ("参子", "councillors"),
+                          ("元三郎", "representatives")]:
+            db.add(Politician(name_ja=nm, party_id=party.id, house=house,
+                              role_profile="ruling", is_active=True))
+        db.commit()
+
+        roster = [
+            {"name": "現一郎", "house": "representatives"},
+            {"name": "参子", "house": "councillors"},
+        ]
+        # ガード: 名簿が min_roster 未満なら何もしない
+        assert _deactivate_former_members(db, roster, min_roster=5) == 0
+        assert db.query(Politician).filter(Politician.is_active == True).count() == 3  # noqa: E712
+
+        # 名簿が十分: 名簿に無い 元三郎 のみ無効化
+        n = _deactivate_former_members(db, roster, min_roster=2)
+        assert n == 1
+        moto = db.query(Politician).filter(Politician.name_ja == "元三郎").first()
+        assert moto.is_active is False
+        actives = {p.name_ja for p in db.query(Politician).filter(Politician.is_active == True)}  # noqa: E712
+        assert actives == {"現一郎", "参子"}
+    finally:
+        db.close()
+        engine.dispose()
+
+
 # ── snapshot crossparty ──────────────────────────────────────────────────
 
 def test_count_crossparty_passed():

@@ -410,6 +410,38 @@ def _upsert_politician(db: Session, member: dict, party: Party) -> Politician:
     return pol
 
 
+def _deactivate_former_members(
+    db: Session, members: list[dict], min_roster: int = 600
+) -> int:
+    """現職名簿に無い既存議員を is_active=False にする（落選・引退者をランキングから除外）。
+
+    members は衆参の現職名簿（name_ja で完全一致判定）。名簿が min_roster 以上
+    取得できた時のみ実行し、取得不全時に現職を巻き込んで無効化する事故を防ぐ。
+    無効化した件数を返す。呼び出し側は --limit 指定時（名簿が切り詰められる）には
+    呼ばないこと。
+    """
+    if len(members) < min_roster:
+        print(
+            f"  [スキップ] 取得名簿 {len(members)} 名は基準 {min_roster} 未満 — "
+            "過去議員の無効化を見送り（取得不全の可能性）"
+        )
+        return 0
+    current = {m["name"] for m in members}
+    stale = (
+        db.query(Politician)
+        .filter(
+            Politician.house.in_(["representatives", "councillors"]),
+            Politician.is_active == True,  # noqa: E712
+            Politician.name_ja.notin_(current),
+        )
+        .all()
+    )
+    for p in stale:
+        p.is_active = False
+    db.flush()
+    return len(stale)
+
+
 def _upsert_activities(
     db: Session,
     politician: Politician,
@@ -475,6 +507,10 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="取込上限（0=無制限）")
     parser.add_argument("--dry-run", action="store_true", help="DBに保存せずプレビュー")
     parser.add_argument("--rescore-only", action="store_true", help="取込スキップ、スコア再計算のみ")
+    parser.add_argument(
+        "--roster-only", action="store_true",
+        help="議員名簿の upsert と過去議員の無効化のみ（発言取得・LLM・再計算はスキップ。高速）",
+    )
     parser.add_argument("--skip-llm", action="store_true", help="LLM評価ステップをスキップ")
     parser.add_argument("--skip-snapshot", action="store_true", help="スコア再計算をスキップ")
     args = parser.parse_args()
@@ -510,6 +546,20 @@ def main() -> None:
     if args.limit:
         members = members[:args.limit]
         print(f"  (--limit {args.limit} で絞込)")
+
+    if args.roster_only:
+        print("\n[roster-only] 議員名簿の upsert と過去議員の無効化のみ実行")
+        with SessionLocal() as db:
+            for m in members:
+                party = _upsert_party(db, m["party"])
+                _upsert_politician(db, m, party)
+            deactivated = (
+                _deactivate_former_members(db, members) if args.limit == 0 else 0
+            )
+            db.commit()
+        print(f"  upsert {len(members)} 名 / 過去議員 無効化 {deactivated} 名")
+        print("\n完了（roster-only）。\n")
+        return
 
     # Step 2: 発言データ取得
     print(f"\n[2/5] 各議員の発言を取得（{len(members)} 名）")
@@ -571,6 +621,15 @@ def main() -> None:
                 total_inserted += inserted
                 total_skipped += skipped
                 print(f"  {m['name']:<10} +{inserted} 件（重複スキップ: {skipped}）")
+
+            # 現職名簿に無い過去議員（落選・引退）を無効化。--limit 指定時は
+            # members が切り詰められ全員無効化されかねないためスキップする。
+            if args.limit == 0:
+                deactivated = _deactivate_former_members(db, members)
+                if deactivated:
+                    print(f"  現職名簿に無い {deactivated} 名を is_active=False に更新")
+            else:
+                print("  (--limit 指定中のため過去議員の無効化はスキップ)")
 
             run.finished_at = datetime.utcnow()
             run.status = "success"
