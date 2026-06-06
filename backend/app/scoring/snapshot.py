@@ -61,8 +61,21 @@ def _count_crossparty_passed(db: Session, bill_ids: list[int]) -> int:
     return sum(1 for _bid, party_count in rows if (party_count or 0) >= 3)
 
 
-def _build_raw_metrics(politician_id: int, db: Session, period_start: date, period_end: date) -> RawMetrics:
-    """DBから1議員の生指標を集計する。"""
+def _build_raw_metrics(
+    politician_id: int,
+    db: Session,
+    period_start: date,
+    period_end: date,
+    cache: dict[int, "RawMetrics"] | None = None,
+) -> RawMetrics:
+    """DBから1議員の生指標を集計する。
+
+    cache を渡すと politician_id 単位でメモ化する。同一 recompute 内では
+    正規化コンテキスト構築と本計算で同じ議員の指標が二度集計されるため、
+    キャッシュで DB クエリを約半減できる（期間固定・DB不変の前提で結果は同一）。
+    """
+    if cache is not None and politician_id in cache:
+        return cache[politician_id]
     m = RawMetrics()
 
     # 出席率（attendance activity の平均）
@@ -167,16 +180,24 @@ def _build_raw_metrics(politician_id: int, db: Session, period_start: date, peri
         weight = ROLE_LEVEL_WEIGHTS.get(role.role_name, role.level_weight or 0.0)
         m.role_weight_sum += weight
 
+    if cache is not None:
+        cache[politician_id] = m
     return m
 
 
-def _build_norm_context(politician_ids: list[int], db: Session, period_start: date, period_end: date) -> NormContext:
+def _build_norm_context(
+    politician_ids: list[int],
+    db: Session,
+    period_start: date,
+    period_end: date,
+    cache: dict[int, "RawMetrics"] | None = None,
+) -> NormContext:
     """対象議員全員の指標からp95正規化コンテキストを作る。"""
     speech_vals, question_vals, primary_vals, passed_vals = [], [], [], []
     contribution_vals: list[float] = []
 
     for pid in politician_ids:
-        m = _build_raw_metrics(pid, db, period_start, period_end)
+        m = _build_raw_metrics(pid, db, period_start, period_end, cache=cache)
         speech_vals.append(float(m.speech_count))
         question_vals.append(float(m.question_count))
         primary_vals.append(float(m.bills_primary))
@@ -213,12 +234,15 @@ def recompute_snapshot(
         ws = db.query(WeightSet).order_by(WeightSet.id.desc()).first()
         weight_set_id = ws.id if ws else None
 
+    # 指標メモ化キャッシュ（正規化コンテキスト構築と本計算の二重集計を避ける）。
+    metrics_cache: dict[int, RawMetrics] = {}
+
     # 院ごとに母集団を分けて正規化（衆参で発言・法案の機会構造が異なるため）
     pids_by_house: dict[str, list[int]] = {}
     for p in politicians:
         pids_by_house.setdefault(p.house, []).append(p.id)
     ctx_by_house = {
-        house: _build_norm_context(pids, db, period_start, period_end)
+        house: _build_norm_context(pids, db, period_start, period_end, cache=metrics_cache)
         for house, pids in pids_by_house.items()
     }
 
@@ -239,7 +263,7 @@ def recompute_snapshot(
             continue
 
         ctx = ctx_by_house[politician.house]
-        m = _build_raw_metrics(politician.id, db, period_start, period_end)
+        m = _build_raw_metrics(politician.id, db, period_start, period_end, cache=metrics_cache)
         scores = compute_all_scores(m, ctx, politician.role_profile)
 
         component = ScoreComponent(

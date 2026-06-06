@@ -92,6 +92,49 @@ def test_contribution_p95_computed(db):
     assert ctx.contribution_p95 >= 2.0  # passed_primary*2 を反映（下限1.0より大）
 
 
+def _role(db, pid, role_name, level_weight=1.0):
+    from app.models import InfluenceRole
+
+    r = InfluenceRole(
+        politician_id=pid, role_scope="committee", role_name=role_name,
+        level_weight=level_weight, start_date=date(2026, 2, 1),
+    )
+    db.add(r)
+    db.flush()
+    return r
+
+
+def test_research_council_role_weights(db):
+    """参院調査会の会長/幹事が委員長/理事相当の重みで集計される（再取込不要）。"""
+    from app.scoring.calculator import ROLE_LEVEL_WEIGHTS
+    from app.scoring.snapshot import _build_raw_metrics
+
+    assert ROLE_LEVEL_WEIGHTS["会長"] == 5.0
+    assert ROLE_LEVEL_WEIGHTS["幹事"] == 2.0
+
+    p = _politician(db, "調査会長", house="councillors")
+    # 既存データの level_weight が古い 1.0 でも、計算時に role_name から引き直す
+    _role(db, p.id, "会長", level_weight=1.0)
+    _role(db, p.id, "幹事", level_weight=1.0)
+    db.commit()
+
+    m = _build_raw_metrics(p.id, db, _P0, _P1)
+    assert m.role_weight_sum == 7.0  # 会長5.0 + 幹事2.0（stored 1.0 は不採用）
+
+
+def test_raw_metrics_cache_reuse(db):
+    """cache を渡すと同一議員の指標は再集計せず同一オブジェクトを返す。"""
+    from app.scoring.snapshot import _build_raw_metrics
+
+    p = _politician(db, "キャッシュ太郎")
+    db.commit()
+    cache: dict = {}
+    m1 = _build_raw_metrics(p.id, db, _P0, _P1, cache=cache)
+    assert p.id in cache
+    m2 = _build_raw_metrics(p.id, db, _P0, _P1, cache=cache)
+    assert m1 is m2  # 二度目は再集計せずキャッシュを返す
+
+
 def test_per_house_normalization(db):
     from app.models import Activity, Score, WeightSet
     from app.scoring.snapshot import recompute_snapshot
