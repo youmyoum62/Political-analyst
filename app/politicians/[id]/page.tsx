@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -105,6 +106,37 @@ function KeyAchievementSection({
       立法・政策への関与記録はまだ登録されていません
     </p>
   );
+}
+
+// ISR: 動的セグメントのためビルド時 prerender されず、初回アクセスで描画し
+// 300秒キャッシュする（API のビルド時依存を生まない安全な設定）。
+export const revalidate = 300;
+
+const HOUSE_LABELS: Record<string, string> = {
+  representatives: '衆議院',
+  councillors: '参議院',
+};
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Metadata> {
+  const { id } = await params;
+  const detail = await fetchPoliticianDetail(Number(id));
+  if (!detail) {
+    return { title: '議員が見つかりません' };
+  }
+  const houseLabel = HOUSE_LABELS[detail.house] ?? detail.house;
+  const title = `${detail.name}（${detail.party}・${houseLabel}）の国会活動スコア`;
+  const description = (
+    detail.summary ||
+    `${detail.name}（${detail.party}・${houseLabel}）の議会参加・発言品質・立法実績・政策実現・影響力を可視化した暫定スコア（総合${detail.final_score.toFixed(1)}点）。`
+  ).slice(0, 120);
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: 'profile' },
+    twitter: { card: 'summary', title, description },
+  };
 }
 
 export default async function PoliticianPage({ params }: { params: Promise<{ id: string }> }) {

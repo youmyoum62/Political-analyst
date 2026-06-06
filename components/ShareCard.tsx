@@ -21,7 +21,8 @@ export function ShareCard({ politician, rank }: { politician: Politician; rank: 
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-black px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+        aria-label="X でシェアする（新しいウィンドウで開きます）"
+        className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-black px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-400"
       >
         Xでシェアする
       </a>

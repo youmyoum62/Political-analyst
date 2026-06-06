@@ -30,6 +30,7 @@ export function RankingCard({
     return (
       <Link
         href={`/politicians/${item.id}`}
+        aria-label={`第${rank}位 ${item.name}（${item.party}）スコア0.0点・発言ゼロ。詳細を見る`}
         className="group rounded-2xl border border-slate-700/60 bg-slate-900/60 p-4 opacity-75 transition duration-200 hover:opacity-100 hover:shadow-lg hover:shadow-rose-900/20"
       >
         <div className="flex items-start justify-between gap-2">
@@ -59,6 +60,7 @@ export function RankingCard({
   return (
     <Link
       href={`/politicians/${item.id}`}
+      aria-label={`第${rank}位 ${item.name}（${item.party}）スコア${item.score.toFixed(1)}点${showTrend ? `・前サイクル比${rankDelta > 0 ? `${rankDelta}位上昇` : rankDelta < 0 ? `${Math.abs(rankDelta)}位下降` : '変動なし'}` : ''}。詳細を見る`}
       className={`group rounded-2xl border bg-gradient-to-br p-4 transition duration-200 hover:-translate-y-1 hover:shadow-2xl ${medalStyle[rank] ?? 'border-slate-800 from-slate-900 to-slate-900'}`}
     >
       <div className="flex items-start justify-between gap-2">

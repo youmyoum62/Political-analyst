@@ -2,16 +2,39 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { SiteFooter } from '@/components/SiteFooter';
 
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://political-analyst-s7s6.vercel.app'
+).replace(/\/+$/, '');
+
+const SITE_NAME = '政治スコアメディア';
+const SITE_DESCRIPTION =
+  '国会議員の議会参加・発言品質・立法実績・政策実現・影響力を公開データから可視化する暫定スコア。ランキング・対決比較・シェアカード。';
+
 export const metadata: Metadata = {
-  title: '政治スコアメディア',
-  description: 'リアルタイム政治ランキング・対決比較・シェアカード'
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  twitter: { card: 'summary', title: SITE_NAME, description: SITE_DESCRIPTION },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
       <body>
-        <main className="mx-auto min-h-screen max-w-7xl px-6 py-8">{children}</main>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-cyan-500 focus:px-4 focus:py-2 focus:font-bold focus:text-slate-950"
+        >
+          メインコンテンツへスキップ
+        </a>
+        <main id="main-content" className="mx-auto min-h-screen max-w-7xl px-6 py-8">{children}</main>
         <SiteFooter />
       </body>
     </html>

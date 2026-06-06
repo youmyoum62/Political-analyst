@@ -35,8 +35,14 @@ export function ScoreHistoryChart({ history }: Props) {
     rank: p.rank_snapshot,
   }));
 
+  const first = data[0];
+  const last = data[data.length - 1];
+  const ariaLabel =
+    `総合スコアの推移を示す折れ線グラフ。${first.label}は${first.score}点、` +
+    `${last.label}は${last.score}点。全${data.length}期（0〜100点）。`;
+
   return (
-    <div className="h-56 w-full rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+    <div role="img" aria-label={ariaLabel} className="h-56 w-full rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
       <ResponsiveContainer>
         <LineChart data={data} margin={{ top: 4, right: 12, left: -8, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" />

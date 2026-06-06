@@ -13,8 +13,13 @@ export function RadarChart({ metrics }: { metrics: PoliticianScoreBreakdown }) {
     { key: '影響力',   value: metrics.influence },
   ];
 
+  const ariaLabel =
+    '5軸スコアのレーダーチャート。' +
+    data.map((d) => `${d.key} ${d.value.toFixed(1)}点`).join('、') +
+    '（各100点満点）。';
+
   return (
-    <div className="h-72 w-full rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <div role="img" aria-label={ariaLabel} className="h-72 w-full rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
       <ResponsiveContainer>
         <Chart data={data} outerRadius="72%">
           <PolarGrid stroke="#334155" />

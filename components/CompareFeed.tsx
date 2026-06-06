@@ -28,7 +28,7 @@ export function CompareFeed({ ranking }: { ranking: Politician[] }) {
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2">
-        <select className="rounded-xl border border-cyan-500/30 bg-slate-900 p-3 font-semibold" value={leftId} onChange={(e) => setLeftId(Number(e.target.value))}>
+        <select aria-label="比較する議員 A を選択" className="rounded-xl border border-cyan-500/30 bg-slate-900 p-3 font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-400" value={leftId} onChange={(e) => setLeftId(Number(e.target.value))}>
           {ranking.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -36,7 +36,7 @@ export function CompareFeed({ ranking }: { ranking: Politician[] }) {
           ))}
         </select>
 
-        <select className="rounded-xl border border-fuchsia-500/30 bg-slate-900 p-3 font-semibold" value={rightId} onChange={(e) => setRightId(Number(e.target.value))}>
+        <select aria-label="比較する議員 B を選択" className="rounded-xl border border-fuchsia-500/30 bg-slate-900 p-3 font-semibold focus:outline-none focus:ring-2 focus:ring-fuchsia-400" value={rightId} onChange={(e) => setRightId(Number(e.target.value))}>
           {ranking.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -70,7 +70,8 @@ export function CompareFeed({ ranking }: { ranking: Politician[] }) {
           href={`https://x.com/intent/tweet?text=${encodeURIComponent(`${left?.name} ${left?.score.toFixed(1)}点 vs ${right?.name} ${right?.score.toFixed(1)}点（暫定値）。評価方法と出典はサイトをご確認ください。`)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-4 inline-flex rounded-full bg-black px-5 py-2 text-sm font-black text-white transition hover:bg-slate-800"
+          aria-label="比較結果を X でシェアする（新しいウィンドウで開きます）"
+          className="mt-4 inline-flex rounded-full bg-black px-5 py-2 text-sm font-black text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-400"
         >
           Xでシェア
         </a>

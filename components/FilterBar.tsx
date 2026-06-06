@@ -35,17 +35,19 @@ export function FilterBar({
       <div className="mb-3">
         <input
           type="text"
+          aria-label="名前・政党・選挙区で検索"
           placeholder="名前・政党・選挙区で検索..."
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          className="w-full rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+          className="w-full rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
         />
       </div>
 
       <div className="flex flex-wrap gap-3 pb-1">
         {/* 院別フィルター */}
         <select
-          className="rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold"
+          aria-label="院で絞り込む"
+          className="rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-400"
           value={house}
           onChange={(e) => onHouseChange(e.target.value as HouseFilter)}
         >
@@ -56,7 +58,8 @@ export function FilterBar({
 
         {/* 年代フィルター */}
         <select
-          className="rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold"
+          aria-label="年代で絞り込む"
+          className="rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-400"
           value={ageGroup}
           onChange={(e) => onAgeGroupChange(e.target.value as AgeGroup)}
         >
@@ -68,7 +71,8 @@ export function FilterBar({
 
         {/* 政党フィルター */}
         <select
-          className="rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold"
+          aria-label="党派で絞り込む"
+          className="rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-400"
           value={party}
           onChange={(e) => onPartyChange(e.target.value)}
         >
@@ -79,7 +83,8 @@ export function FilterBar({
 
         {/* 性別フィルター */}
         <select
-          className="rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold"
+          aria-label="性別で絞り込む"
+          className="rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-400"
           value={gender}
           onChange={(e) => onGenderChange(e.target.value)}
         >
