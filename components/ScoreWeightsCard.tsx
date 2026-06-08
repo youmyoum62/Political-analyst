@@ -60,7 +60,15 @@ export function ScoreWeightsCard({ analysis }: { analysis: ApiAnalysis }) {
                   </span>
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-slate-700/60">
+              <div
+                role="progressbar"
+                aria-valuenow={Math.round(score)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuetext={`${score.toFixed(1)}点`}
+                aria-label={`${AXIS_LABELS[key]}スコア`}
+                className="h-2 w-full rounded-full bg-slate-700/60"
+              >
                 <div
                   className="h-2 rounded-full bg-gradient-to-r from-cyan-500 to-fuchsia-500 transition-all"
                   style={{ width: barWidth(score) }}
@@ -71,7 +79,7 @@ export function ScoreWeightsCard({ analysis }: { analysis: ApiAnalysis }) {
         })}
       </div>
 
-      <p className="mt-4 text-[10px] text-slate-500">
+      <p className="mt-4 text-[10px] text-slate-400">
         ※ ウェイトは役割プロファイルにより異なります。寄与 = スコア × ウェイト。
       </p>
     </div>

@@ -211,7 +211,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
             <h3 className="text-lg font-black">このスコアが示すもの</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-300">{summaryText}</p>
             {!hasRealSummary && (
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-slate-400">
                 ※ AIによる評価プロフィールは生成待ちです。上記はスコアから自動表示した暫定説明であり、AI生成文ではありません。
               </p>
             )}

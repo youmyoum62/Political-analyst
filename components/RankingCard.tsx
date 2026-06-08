@@ -35,14 +35,14 @@ export function RankingCard({
       >
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-[2.4rem] font-black leading-none text-slate-600 sm:text-5xl">#{rank}</p>
+            <p aria-hidden="true" className="text-[2.4rem] font-black leading-none text-slate-600 sm:text-5xl">#{rank}</p>
             <p className="mt-1 text-lg font-black text-slate-300 sm:text-xl">{item.name}</p>
-            <p className="text-xs text-slate-500 sm:text-sm">
+            <p className="text-xs text-slate-400 sm:text-sm">
               {item.party} · {item.district}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500">スコア</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">スコア</p>
             <p className="text-3xl font-black text-slate-500 sm:text-4xl">0.0</p>
           </div>
         </div>
@@ -51,7 +51,7 @@ export function RankingCard({
           <span className="rounded-full border border-rose-500/50 bg-rose-900/40 px-2 py-1 font-bold tracking-wide text-rose-300">
             ⚠ 発言ゼロ
           </span>
-          <span className="font-semibold text-slate-500 transition group-hover:text-slate-300">詳細を見る →</span>
+          <span className="font-semibold text-slate-400 transition group-hover:text-slate-300">詳細を見る →</span>
         </div>
       </Link>
     );
@@ -65,7 +65,7 @@ export function RankingCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-[2.4rem] font-black leading-none sm:text-5xl">#{rank}</p>
+          <p aria-hidden="true" className="text-[2.4rem] font-black leading-none sm:text-5xl">#{rank}</p>
           <p className="mt-1 text-lg font-black sm:text-xl">{item.name}</p>
           <p className="text-xs text-slate-300 sm:text-sm">
             {item.party}

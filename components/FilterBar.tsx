@@ -39,7 +39,7 @@ export function FilterBar({
           placeholder="名前・政党・選挙区で検索..."
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          className="w-full rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          className="w-full rounded-full border border-slate-600 bg-slate-900 px-4 py-2 text-sm placeholder:text-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400"
         />
       </div>
 

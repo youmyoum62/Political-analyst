@@ -65,7 +65,7 @@ export function CompareFeed({ ranking }: { ranking: Politician[] }) {
         <p className="text-sm uppercase tracking-[0.2em] text-slate-400">暫定スコア差</p>
         <p className="mt-1 text-5xl font-black text-cyan-300">{diff > 0 ? '+' : ''}{diff.toFixed(1)}</p>
         <p className="mt-2 text-sm text-slate-200">{diff >= 0 ? `暫定スコアが高いのは ${left?.name} です。` : `暫定スコアが高いのは ${right?.name} です。`}</p>
-        <p className="mt-1 text-xs text-slate-500">※ 出席・発言データ中心の暫定値です。確定的な優劣を示すものではありません。</p>
+        <p className="mt-1 text-xs text-slate-400">※ 出席・発言データ中心の暫定値です。確定的な優劣を示すものではありません。</p>
         <a
           href={`https://x.com/intent/tweet?text=${encodeURIComponent(`${left?.name} ${left?.score.toFixed(1)}点 vs ${right?.name} ${right?.score.toFixed(1)}点（暫定値）。評価方法と出典はサイトをご確認ください。`)}`}
           target="_blank"

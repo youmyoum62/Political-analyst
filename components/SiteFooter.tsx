@@ -75,7 +75,7 @@ export function SiteFooter() {
           </li>
         ))}
       </ul>
-      <p className="mt-4 text-slate-500">
+      <p className="mt-4 text-slate-400">
         スコアは公開データを基に当サイトが独自に算出した暫定値であり、各データ提供元の見解を示すものではありません。
         法案データの利用にあたり「スマートニュース メディア研究所」をデータ提供元として表示しています。
       </p>

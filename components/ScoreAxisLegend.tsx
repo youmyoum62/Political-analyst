@@ -31,13 +31,17 @@ export function ScoreAxisLegend() {
     <details className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 group">
       <summary className="cursor-pointer list-none flex items-center justify-between">
         <span className="text-sm font-semibold text-slate-200">評価軸の説明</span>
-        <span className="text-xs text-slate-400 group-open:hidden">▼ 展開</span>
-        <span className="text-xs text-slate-400 hidden group-open:inline">▲ 閉じる</span>
+        <span className="text-xs text-slate-400 group-open:hidden">
+          <span aria-hidden="true">▼ </span>展開
+        </span>
+        <span className="text-xs text-slate-400 hidden group-open:inline">
+          <span aria-hidden="true">▲ </span>閉じる
+        </span>
       </summary>
       <ul className="mt-3 space-y-2">
         {AXES.map((axis) => (
           <li key={axis.label} className="flex items-start gap-2 text-xs">
-            <span className="mt-0.5 shrink-0 text-base leading-none">{axis.icon}</span>
+            <span aria-hidden="true" className="mt-0.5 shrink-0 text-base leading-none">{axis.icon}</span>
             <span>
               <span className="font-semibold text-slate-200">{axis.label}</span>
               <span className="ml-1 text-slate-400">— {axis.description}</span>
