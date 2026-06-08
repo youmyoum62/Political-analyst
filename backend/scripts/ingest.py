@@ -35,7 +35,7 @@ from sqlalchemy.orm import Session
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.database import SessionLocal, engine
+from app.database import SessionLocal, engine, wait_for_db
 from app.ingest.filters import is_procedural_speech
 from app.ingest.hashing import speech_hash
 from app.models import (
@@ -531,6 +531,8 @@ def main() -> None:
     print(f"  実行モード: {'DRY RUN' if args.dry_run else '本番'}")
     print("=" * 60)
 
+    # Supabase pooler への断続的な接続 timeout に備え、接続確立まで待ってから進む
+    wait_for_db()
     Base.metadata.create_all(bind=engine)
 
     if args.rescore_only:

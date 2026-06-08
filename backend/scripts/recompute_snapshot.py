@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.database import SessionLocal  # noqa: E402
+from app.database import SessionLocal, wait_for_db  # noqa: E402
 from app.scoring.snapshot import recompute_snapshot  # noqa: E402
 
 
@@ -41,6 +41,8 @@ def main() -> None:
         ap.error("--period-end は --period-start 以降である必要があります")
 
     print(f"=== スコア再計算 period {period_start} 〜 {period_end} ===")
+    # Supabase pooler への断続的な接続 timeout に備え、接続確立まで待ってから進む
+    wait_for_db()
     db = SessionLocal()
     try:
         written = recompute_snapshot(
