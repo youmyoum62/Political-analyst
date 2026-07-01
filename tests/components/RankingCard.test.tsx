@@ -23,12 +23,12 @@ describe('RankingCard', () => {
     expect(link).toHaveAccessibleName(/第2位 佐藤花子（自民党）スコア82.4点/);
   });
 
-  it('発言ゼロ（inactive）カードを表示する', () => {
+  it('発言データなし（inactive）カードを表示する', () => {
     render(<RankingCard item={makePolitician({ isInactive: true, score: 0 })} rank={10} />);
     // inactive カードはスコアを参照せず常に "0.0" を表示する仕様（component 側でハードコード）。
     expect(screen.getByText('0.0')).toBeInTheDocument();
-    expect(screen.getByText(/発言ゼロ/)).toBeInTheDocument();
-    expect(screen.getByRole('link')).toHaveAccessibleName(/発言ゼロ/);
+    expect(screen.getByText(/発言データなし/)).toBeInTheDocument();
+    expect(screen.getByRole('link')).toHaveAccessibleName(/発言データなし/);
   });
 
   it('showTrend で上昇トレンドを表示する', () => {
@@ -41,7 +41,7 @@ describe('RankingCard', () => {
     expect(screen.getByText(/▼ -2/)).toBeInTheDocument();
   });
 
-  it('a11y 違反がない（現職・発言ゼロ）', async () => {
+  it('a11y 違反がない（現職・発言データなし）', async () => {
     const active = render(<RankingCard item={makePolitician()} rank={1} />);
     expect(await checkA11y(active.container)).toHaveNoViolations();
 

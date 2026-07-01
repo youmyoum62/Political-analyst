@@ -48,7 +48,7 @@ function TopQuestionSection({
   activities: ApiActivityItem[];
 }) {
   if (detail.top_question) {
-    return <p className="mt-2 text-sm text-indigo-100">{detail.top_question}</p>;
+    return <p className="mt-2 text-sm text-ink">{detail.top_question}</p>;
   }
 
   const questionActivity = activities.find((a) => a.activity_type === 'question');
@@ -56,7 +56,7 @@ function TopQuestionSection({
     const preview = questionActivity.content_text.slice(0, 150);
     const truncated = questionActivity.content_text.length > 150 ? `${preview}…` : preview;
     return (
-      <p className="mt-2 text-sm text-indigo-100">
+      <p className="mt-2 text-sm text-ink">
         {truncated}
         {questionActivity.source_url && (
           <>
@@ -65,7 +65,7 @@ function TopQuestionSection({
               href={questionActivity.source_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline text-indigo-300 hover:text-indigo-100"
+              className="underline text-accent hover:text-ink"
             >
               出典
             </a>
@@ -76,7 +76,7 @@ function TopQuestionSection({
   }
 
   return (
-    <p className="mt-2 text-sm text-slate-400">発言記録がまだ登録されていません</p>
+    <p className="mt-2 text-sm text-muted">発言記録がまだ登録されていません</p>
   );
 }
 
@@ -88,7 +88,7 @@ function KeyAchievementSection({
   activities: ApiActivityItem[];
 }) {
   if (detail.key_achievement) {
-    return <p className="mt-2 text-sm text-emerald-100">{detail.key_achievement}</p>;
+    return <p className="mt-2 text-sm text-ink">{detail.key_achievement}</p>;
   }
 
   const achievementActivity = activities.find(
@@ -98,11 +98,11 @@ function KeyAchievementSection({
     const preview = achievementActivity.content_text.slice(0, 100);
     const truncated =
       achievementActivity.content_text.length > 100 ? `${preview}…` : preview;
-    return <p className="mt-2 text-sm text-emerald-100">{truncated}</p>;
+    return <p className="mt-2 text-sm text-ink">{truncated}</p>;
   }
 
   return (
-    <p className="mt-2 text-sm text-slate-400">
+    <p className="mt-2 text-sm text-muted">
       立法・政策への関与記録はまだ登録されていません
     </p>
   );
@@ -167,34 +167,37 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-6">
-      <Link href="/" className="text-sm font-semibold text-cyan-300 hover:underline">
+      <Link href="/" className="text-sm font-semibold text-accent hover:underline">
         ← ランキングに戻る
       </Link>
 
       {/* ── ヒーローセクション ── */}
-      <section className="rounded-3xl border border-fuchsia-500/40 bg-gradient-to-r from-fuchsia-500/20 via-slate-900 to-cyan-500/10 p-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-fuchsia-200">スポットライトプロフィール</p>
+      <section className="rounded-3xl border border-line bg-surface p-6">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted">議員プロフィール</p>
         <h1 className="mt-2 text-4xl font-black sm:text-5xl">{detail.name}</h1>
-        <p className="mt-1 text-slate-200">
+        <p className="mt-1 text-muted">
           {detail.party}
           {' · '}
           {detail.house === 'representatives' ? '衆議院' : '参議院'}
           {detail.district ? ` · ${detail.district}` : ''}
           {detail.age ? ` · ${detail.age}歳` : ''}
         </p>
-        <p className="mt-4 text-6xl font-black text-cyan-300">{detail.final_score.toFixed(1)}</p>
-        <div className="mt-1 flex items-center gap-3 text-sm font-semibold text-slate-200">
-          <span>暫定順位 #{rank}</span>
-          <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold tracking-wide">
+        <p className="mt-4 text-6xl font-black text-accent">{detail.final_score.toFixed(1)}</p>
+        <div className="mt-1 flex items-center gap-3 text-sm font-semibold">
+          <span className="text-muted">暫定順位 #{rank}</span>
+          <span className="rounded-full border border-line px-2 py-0.5 text-xs font-bold text-ink">
             {ROLE_LABELS[detail.role_profile] ?? detail.role_profile}
           </span>
         </div>
 
         {uncollectedAxes.length > 0 && (
-          <p className="mt-4 rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-100">
-            ⚠ <strong>暫定スコア</strong>：このスコアは出席・発言データを中心に算出した暫定値です。
-            次の評価軸はデータ収集中で未反映です — {uncollectedAxes.join('・')}。
-          </p>
+          <div className="mt-4 flex gap-2.5 rounded-xl border border-line bg-canvas p-3">
+            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-accent2 text-[10px] font-bold text-accent2">i</span>
+            <p className="text-xs leading-relaxed text-muted">
+              <strong className="text-ink">暫定スコア。</strong>このスコアは出席・発言データを中心に算出した暫定値です。
+              次の評価軸はデータ収集中で未反映です — {uncollectedAxes.join('・')}。
+            </p>
+          </div>
         )}
       </section>
 
@@ -203,27 +206,27 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
         <div>
           <h2 className="mb-2 text-xl font-black">パワーレーダー</h2>
           <RadarChart metrics={politician.metrics} />
-          <p className="mt-2 text-sm text-slate-300">5つの評価軸を一目で確認。</p>
+          <p className="mt-2 text-sm text-muted">5つの評価軸を一目で確認。</p>
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
+          <div className="rounded-2xl border border-line bg-surface p-4">
             <h3 className="text-lg font-black">このスコアが示すもの</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">{summaryText}</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{summaryText}</p>
             {!hasRealSummary && (
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-muted">
                 ※ AIによる評価プロフィールは生成待ちです。上記はスコアから自動表示した暫定説明であり、AI生成文ではありません。
               </p>
             )}
           </div>
 
-          <div className="rounded-2xl border border-indigo-400/40 bg-indigo-500/10 p-4">
-            <h3 className="text-lg font-black">注目質問</h3>
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <h3 className="text-xs font-black uppercase tracking-[0.06em] text-accent">注目質問</h3>
             <TopQuestionSection detail={detail} activities={activities} />
           </div>
 
-          <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4">
-            <h3 className="text-lg font-black">主な実績</h3>
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <h3 className="text-xs font-black uppercase tracking-[0.06em] text-accent2">主な実績</h3>
             <KeyAchievementSection detail={detail} activities={activities} />
           </div>
         </div>
@@ -240,8 +243,8 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
       </section>
 
       {/* ── シェアセクション ── */}
-      <section className="rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4 text-sm text-amber-100">
-        話題になろう：この順位に同意する？このカードをシェアして、異論を持つ人に挑戦しよう。
+      <section className="rounded-2xl border border-line bg-surface p-4 text-sm text-muted">
+        この順位に同意する？このカードを共有して、意見を交換しよう。
       </section>
 
       <ShareCard politician={politician} rank={rank} />

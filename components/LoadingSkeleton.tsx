@@ -1,7 +1,7 @@
 export function LoadingSkeleton({ className = '' }: { className?: string }) {
   return (
     <div
-      className={`animate-pulse rounded-lg bg-slate-700/50 ${className}`}
+      className={`animate-pulse rounded-lg bg-surface ${className}`}
       aria-hidden="true"
     />
   );
@@ -13,7 +13,7 @@ export function PoliticianDetailSkeleton() {
       <LoadingSkeleton className="h-5 w-32" />
 
       {/* hero */}
-      <div className="rounded-3xl border border-slate-700 bg-slate-800/50 p-6 space-y-3">
+      <div className="rounded-3xl border border-line bg-surface/50 p-6 space-y-3">
         <LoadingSkeleton className="h-3 w-40" />
         <LoadingSkeleton className="h-10 w-64" />
         <LoadingSkeleton className="h-4 w-48" />

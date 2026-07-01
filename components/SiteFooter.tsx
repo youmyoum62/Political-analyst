@@ -44,14 +44,14 @@ const SOURCES: Source[] = [
 
 export function SiteFooter() {
   return (
-    <footer className="mx-auto mt-12 max-w-7xl border-t border-slate-800 px-6 py-8 text-xs text-slate-400">
-      <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-slate-300">
+    <footer className="mx-auto mt-12 max-w-7xl border-t border-line px-6 py-8 text-xs text-muted">
+      <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted">
         データ出典
       </h2>
       <ul className="mt-3 space-y-3">
         {SOURCES.map((s) => (
           <li key={s.label}>
-            <span className="font-semibold text-slate-200">{s.label}：</span>
+            <span className="font-semibold text-ink">{s.label}：</span>
             <span>{s.detail}</span>
             {s.links.length > 0 && (
               <span className="ml-1">
@@ -63,7 +63,7 @@ export function SiteFooter() {
                       href={l.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-cyan-400 underline-offset-2 hover:underline"
+                      className="text-accent underline-offset-2 hover:underline"
                     >
                       {l.text}
                     </a>
@@ -75,7 +75,7 @@ export function SiteFooter() {
           </li>
         ))}
       </ul>
-      <p className="mt-4 text-slate-400">
+      <p className="mt-4 text-muted">
         スコアは公開データを基に当サイトが独自に算出した暫定値であり、各データ提供元の見解を示すものではありません。
         法案データの利用にあたり「スマートニュース メディア研究所」をデータ提供元として表示しています。
       </p>

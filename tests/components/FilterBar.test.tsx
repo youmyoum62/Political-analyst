@@ -45,17 +45,23 @@ describe('FilterBar', () => {
     expect(props.onQueryChange).toHaveBeenCalledWith('山');
   });
 
-  it('院セレクトの変更で onHouseChange を呼ぶ', async () => {
+  it('院セグメントの切り替えで onHouseChange を呼ぶ', async () => {
     const user = userEvent.setup();
     const props = setup();
-    await user.selectOptions(screen.getByLabelText('院で絞り込む'), 'representatives');
+    await user.click(screen.getByRole('radio', { name: '衆議院' }));
     expect(props.onHouseChange).toHaveBeenCalledWith('representatives');
   });
 
-  it('発言ゼロボタンで onShowInactiveChange をトグルする', async () => {
+  it('院セグメントは選択状態を aria-checked で示す', () => {
+    setup({ house: 'councillors' });
+    expect(screen.getByRole('radio', { name: '参議院' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '衆議院' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('発言データなしボタンで onShowInactiveChange をトグルする', async () => {
     const user = userEvent.setup();
     const props = setup({ showInactive: false });
-    await user.click(screen.getByRole('button', { name: /発言ゼロ/ }));
+    await user.click(screen.getByRole('button', { name: /発言データなし/ }));
     expect(props.onShowInactiveChange).toHaveBeenCalledWith(true);
   });
 
@@ -73,14 +79,14 @@ describe('FilterBar', () => {
     expect(props.onGenderChange).toHaveBeenCalledWith('All');
     expect(props.onHouseChange).toHaveBeenCalledWith('All');
     expect(props.onQueryChange).toHaveBeenCalledWith('');
-    // 発言ゼロ表示はリセット対象外（巻き込まれないことを固定する）。
+    // 発言データなし表示はリセット対象外（巻き込まれないことを固定する）。
     expect(props.onShowInactiveChange).not.toHaveBeenCalled();
   });
 
-  it('キーボード操作（Tab→Enter）で発言ゼロボタンを起動できる', async () => {
+  it('キーボード操作（Tab→Enter）で発言データなしボタンを起動できる', async () => {
     const user = userEvent.setup();
     const props = setup();
-    const toggle = screen.getByRole('button', { name: /発言ゼロ/ });
+    const toggle = screen.getByRole('button', { name: /発言データなし/ });
     toggle.focus();
     expect(toggle).toHaveFocus();
     await user.keyboard('{Enter}');

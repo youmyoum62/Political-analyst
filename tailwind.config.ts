@@ -5,11 +5,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        surface: '#0f172a',
-        card: '#111827',
-        accent: '#38bdf8',
-        positive: '#10b981',
-        warning: '#f59e0b'
+        // ダーク基調のニュートラル背景・表面
+        canvas: '#17181a',
+        surface: '#1f2123',
+        line: '#34373a',
+        // テキスト
+        ink: '#f1efe9',
+        muted: '#9a988f',
+        // 2アクセント（ブルー＝信頼／アンバー＝暖かみ）
+        accent: '#6ea8ff',
+        accent2: '#e3a857',
+        // トレンド（上昇／下落）
+        up: '#57cf8d',
+        down: '#e08763'
+      },
+      fontFamily: {
+        sans: ['var(--font-noto-sans-jp)', 'system-ui', '-apple-system', 'sans-serif']
       }
     }
   },

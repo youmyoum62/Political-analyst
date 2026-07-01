@@ -28,7 +28,7 @@ export default function ErrorPage({
       <p className="mt-3 text-sm text-rose-100/90">
         バックエンドAPIが起動中の可能性があります。{countdown}秒後に自動で再試行します。
       </p>
-      <p className="mt-3 rounded-xl border border-rose-400/30 bg-slate-950/50 p-3 text-xs text-rose-100">
+      <p className="mt-3 rounded-xl border border-rose-400/30 bg-canvas/50 p-3 text-xs text-rose-100">
         {error.message}
       </p>
       <div className="mt-4 flex items-center gap-3">

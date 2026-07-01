@@ -19,12 +19,12 @@ export function RadarChart({ metrics }: { metrics: PoliticianScoreBreakdown }) {
     '（各100点満点）。';
 
   return (
-    <div role="img" aria-label={ariaLabel} className="h-72 w-full rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <div role="img" aria-label={ariaLabel} className="h-72 w-full rounded-2xl border border-line bg-surface p-4">
       <ResponsiveContainer>
         <Chart data={data} outerRadius="72%">
-          <PolarGrid stroke="#334155" />
-          <PolarAngleAxis dataKey="key" stroke="#e2e8f0" tick={{ fontSize: 12 }} />
-          <Radar dataKey="value" stroke="#22d3ee" fill="#06b6d4" fillOpacity={0.45} />
+          <PolarGrid stroke="#34373a" />
+          <PolarAngleAxis dataKey="key" stroke="#f1efe9" tick={{ fontSize: 12 }} />
+          <Radar dataKey="value" stroke="#6ea8ff" fill="#6ea8ff" fillOpacity={0.35} />
         </Chart>
       </ResponsiveContainer>
     </div>
