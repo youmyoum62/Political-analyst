@@ -94,22 +94,21 @@ class PoliticianRepository:
         return self.db.get(Party, party_id)
 
     def get_politician_rank(self, politician_id: int) -> int | None:
-        """最新スナップショットでの rank_snapshot を返す。"""
-        from sqlalchemy import func
-        max_dt = self.db.scalar(
-            select(func.max(ScoreComponent.computed_at))
-            .where(ScoreComponent.politician_id == politician_id)
-        )
-        if max_dt is None:
+        """スコアに基づく競争順位（同点は同順位、次順位は繰り下げ）を返す。
+
+        永続化された rank_snapshot は再計算のたびに非連続・不整合になり得るため参照しない。
+        ランキング一覧（services.ranking）と同一データ・同一定義でスコア降順の順位を
+        算出し、一覧と詳細の順位を必ず一致させる（順位 = 自分より高スコアの人数 + 1）。
+        """
+        rows = self.list_ranking()
+        target: float | None = None
+        for politician, _component, score in rows:
+            if politician.id == politician_id:
+                target = score.final_score
+                break
+        if target is None:
             return None
-        return self.db.scalar(
-            select(Score.rank_snapshot)
-            .join(ScoreComponent, ScoreComponent.id == Score.component_set_id)
-            .where(
-                ScoreComponent.politician_id == politician_id,
-                ScoreComponent.computed_at == max_dt,
-            )
-        )
+        return 1 + sum(1 for _p, _c, score in rows if score.final_score > target)
 
     def get_latest_score_component(self, politician_id: int) -> ScoreComponent | None:
         stmt = (
