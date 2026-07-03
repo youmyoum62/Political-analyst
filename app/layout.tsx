@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
 import { SiteFooter } from '@/components/SiteFooter';
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
@@ -9,14 +10,6 @@ const notoSansJP = Noto_Sans_JP({
   variable: '--font-noto-sans-jp',
   display: 'swap',
 });
-
-const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://political-analyst-s7s6.vercel.app'
-).replace(/\/+$/, '');
-
-const SITE_NAME = '政治スコアメディア';
-const SITE_DESCRIPTION =
-  '国会議員の議会参加・発言品質・立法実績・政策実現・影響力を公開データから可視化する暫定スコア。ランキング・対決比較・シェアカード。';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

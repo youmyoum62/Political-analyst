@@ -5,6 +5,15 @@
  * MIT ライセンス上クレジット表記が必要なため、ここで出典とライセンスを明示する。
  */
 
+import Link from 'next/link';
+
+const NAV_LINKS: { href: string; label: string }[] = [
+  { href: '/about', label: 'このサイトについて' },
+  { href: '/methodology', label: '評価方法' },
+  { href: '/privacy', label: 'プライバシーポリシー' },
+  { href: '/disclaimer', label: '免責事項' },
+];
+
 type Source = {
   label: string;
   detail: string;
@@ -45,6 +54,13 @@ const SOURCES: Source[] = [
 export function SiteFooter() {
   return (
     <footer className="mx-auto mt-12 max-w-7xl border-t border-line px-6 py-8 text-xs text-muted">
+      <nav aria-label="サイト情報" className="mb-6 flex flex-wrap gap-x-5 gap-y-2">
+        {NAV_LINKS.map((l) => (
+          <Link key={l.href} href={l.href} className="font-semibold text-ink hover:text-accent hover:underline">
+            {l.label}
+          </Link>
+        ))}
+      </nav>
       <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted">
         データ出典
       </h2>
