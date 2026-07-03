@@ -9,7 +9,12 @@ import { ShareCard } from '@/components/ShareCard';
 import { AgeGroup, HouseFilter, filterPoliticians, getBiggestDrops, getParties, getRankedPoliticians, getRisingPoliticians } from '@/lib/api';
 import { Politician } from '@/lib/types';
 
-export function RankingFeed({ ranking }: { ranking: Politician[] }) {
+export function RankingFeed({ ranking, limit }: { ranking: Politician[]; limit?: number }) {
+  // limit 指定時（トップページ）は上位N件のみのプレビュー表示。フィルタと発言データなし欄は
+  // 全件ページ（/ranking）側に集約し、プレビューでは出さない（絞り込みが全件リンクに
+  // 引き継がれない矛盾・機能しないトグルを避けるため）。
+  const isLimited = typeof limit === 'number';
+
   const [ageGroup, setAgeGroup] = useState<AgeGroup>('All');
   const [party, setParty] = useState('All');
   const [gender, setGender] = useState('All');
@@ -33,6 +38,9 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
 
   const activeFiltered = filtered.filter((p) => !p.isInactive);
   const inactiveFiltered = filtered.filter((p) => p.isInactive);
+
+  const displayedActive = isLimited ? activeFiltered.slice(0, limit) : activeFiltered;
+  const hasMore = isLimited && activeFiltered.length > (limit as number);
 
   const hero = activeFiltered[0] ?? sorted.find((p) => !p.isInactive) ?? sorted[0];
 
@@ -92,40 +100,53 @@ export function RankingFeed({ ranking }: { ranking: Politician[] }) {
         </p>
       </section>
 
-      <FilterBar
-        ageGroup={ageGroup}
-        party={party}
-        gender={gender}
-        house={house}
-        query={query}
-        parties={parties}
-        showInactive={showInactive}
-        inactiveCount={inactiveCount}
-        onAgeGroupChange={setAgeGroup}
-        onPartyChange={setParty}
-        onGenderChange={setGender}
-        onHouseChange={setHouse}
-        onQueryChange={setQuery}
-        onShowInactiveChange={setShowInactive}
-      />
+      {!isLimited && (
+        <FilterBar
+          ageGroup={ageGroup}
+          party={party}
+          gender={gender}
+          house={house}
+          query={query}
+          parties={parties}
+          showInactive={showInactive}
+          inactiveCount={inactiveCount}
+          onAgeGroupChange={setAgeGroup}
+          onPartyChange={setParty}
+          onGenderChange={setGender}
+          onHouseChange={setHouse}
+          onQueryChange={setQuery}
+          onShowInactiveChange={setShowInactive}
+        />
+      )}
 
       <section id="ranking-feed" className="space-y-3">
         <div className="flex items-end justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-muted">ライブリーダーボード</p>
-            <h2 className="text-2xl font-black sm:text-3xl">ランキング</h2>
+            <h2 className="text-2xl font-black sm:text-3xl">{isLimited ? `暫定トップ${limit}` : 'ランキング'}</h2>
           </div>
-          <p className="text-sm text-muted">{activeFiltered.length}人がフィルターにマッチ</p>
+          <p className="text-sm text-muted">
+            {isLimited ? `上位${displayedActive.length}名を表示` : `${activeFiltered.length}人がフィルターにマッチ`}
+          </p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {activeFiltered.map((item) => (
+          {displayedActive.map((item) => (
             <RankingCard key={item.id} item={item} rank={item.rank} showTrend={hasTrendData} />
           ))}
         </div>
+
+        {hasMore && (
+          <Link
+            href="/ranking"
+            className="flex items-center justify-center rounded-2xl border border-line bg-surface p-4 text-sm font-bold text-accent transition hover:border-muted"
+          >
+            全{activeFiltered.length}名のランキングを見る →
+          </Link>
+        )}
       </section>
 
-      {showInactive && inactiveFiltered.length > 0 && (
+      {!isLimited && showInactive && inactiveFiltered.length > 0 && (
         <section className="space-y-3">
           <div className="rounded-2xl border border-line bg-surface p-4">
             <h2 className="text-xl font-black">発言データなしの議員</h2>

@@ -5,5 +5,5 @@ export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   const ranking = await fetchRanking();
-  return <RankingFeed ranking={ranking} />;
+  return <RankingFeed ranking={ranking} limit={30} />;
 }
