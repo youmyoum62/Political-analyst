@@ -1,3 +1,4 @@
+from app.models import Politician
 from app.repositories import PoliticianRepository
 from app.schemas import (
     ActivityItem,
@@ -9,10 +10,9 @@ from app.schemas import (
 from app.scoring.calculator import ROLE_WEIGHTS
 
 
-def _party_name(repo: PoliticianRepository, party_id: int | None) -> str:
-    if party_id is None:
-        return "無所属"
-    party = repo.get_party(party_id)
+def _party_name(politician: Politician) -> str:
+    # party_rel は list_ranking / list_politicians で joinedload 済み（N+1 回避）。
+    party = politician.party_rel
     return party.name_ja if party else "無所属"
 
 
@@ -29,7 +29,7 @@ class PoliticianService:
             PoliticianListItem(
                 id=p.id,
                 name=p.name_ja,
-                party=_party_name(self.repo, p.party_id),
+                party=_party_name(p),
                 house=p.house,
                 role_profile=p.role_profile,
             )
@@ -48,7 +48,7 @@ class PoliticianService:
         return PoliticianDetail(
             id=politician.id,
             name=politician.name_ja,
-            party=_party_name(self.repo, politician.party_id),
+            party=_party_name(politician),
             house=politician.house,
             district=politician.electoral_district,
             age=politician.age,
@@ -86,7 +86,7 @@ class PoliticianService:
                     politician_id=politician.id,
                     rank=current_rank,
                     name=politician.name_ja,
-                    party=_party_name(self.repo, politician.party_id),
+                    party=_party_name(politician),
                     house=politician.house,
                     district=politician.electoral_district,
                     age=politician.age,

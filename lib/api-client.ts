@@ -231,6 +231,50 @@ export async function fetchScoreHistory(id: number): Promise<ApiScoreHistoryPoin
   return data;
 }
 
+export type DigestSpeaker = {
+  politician_id: number;
+  name: string;
+  party: string | null;
+  activity_type: string;
+  source_url: string;
+};
+
+export type DigestMinutesDay = {
+  date: string;
+  speaker_count: number;
+  speakers: DigestSpeaker[];
+};
+
+export type DigestBill = {
+  id: number;
+  title: string;
+  status: string;
+  date: string | null;
+  source_url: string | null;
+};
+
+export type Digest = {
+  generated_at: string;
+  latest_activity_date: string | null;
+  in_session: boolean;
+  minutes: DigestMinutesDay[];
+  bills: DigestBill[];
+};
+
+/**
+ * トップページ「国会の動き」欄のデータ。補助コンテンツのため、失敗しても null を返して
+ * ホームの描画（ランキング）は止めない。
+ */
+export async function fetchDigest(): Promise<Digest | null> {
+  try {
+    const res = await fetchWithRetry(`${API_BASE}/v1/digest`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export type ApiActivityItem = {
   id: number;
   activity_type: 'question' | 'speech' | 'attendance' | 'committee_action';

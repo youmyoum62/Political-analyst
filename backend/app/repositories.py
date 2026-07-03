@@ -1,8 +1,9 @@
-from sqlalchemy import select, text
-from sqlalchemy.orm import Session
+from sqlalchemy import func, nulls_last, select, text
+from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
     Activity,
+    Bill,
     IngestionRun,
     LlmEvaluation,
     Party,
@@ -26,6 +27,45 @@ class AdminRepository:
         )
 
 
+class DigestRepository:
+    """トップページ「国会の動き」欄のための集計クエリ。
+    既存の activities（会議録）と bills（議案DB）から読み取るだけで、
+    新規のスクレイピングや外部取得は行わない。"""
+
+    # 「発言」として扱う活動種別（出席イベントは除外）
+    _MINUTES_TYPES = ("question", "speech", "committee_action")
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def recent_activities(self, row_limit: int = 150) -> list:
+        """最近の発言系 activity を新しい順で返す (Activity, Politician, Party)。"""
+        stmt = (
+            select(Activity, Politician, Party)
+            .join(Politician, Politician.id == Activity.politician_id)
+            .outerjoin(Party, Party.id == Politician.party_id)
+            .where(
+                Activity.activity_type.in_(self._MINUTES_TYPES),
+                Politician.is_active == True,  # noqa: E712
+            )
+            .order_by(Activity.session_date.desc(), Activity.id.desc())
+            .limit(row_limit)
+        )
+        return list(self.db.execute(stmt).all())
+
+    def recent_bills(self, limit: int = 8) -> list[Bill]:
+        """最近動きのあった法案を、可決日→提出日→更新日時の順で新しい順に返す。"""
+        stmt = (
+            select(Bill)
+            .order_by(
+                nulls_last(func.coalesce(Bill.passed_date, Bill.submitted_date).desc()),
+                Bill.updated_at.desc(),
+            )
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).all())
+
+
 class PoliticianRepository:
     def __init__(self, db: Session):
         self.db = db
@@ -33,6 +73,7 @@ class PoliticianRepository:
     def list_politicians(self, limit: int = 100, offset: int = 0) -> list[Politician]:
         stmt = (
             select(Politician)
+            .options(joinedload(Politician.party_rel))
             .where(Politician.is_active == True)  # noqa: E712
             .order_by(Politician.id.asc())
             .limit(limit)
@@ -112,6 +153,7 @@ class PoliticianRepository:
 
         stmt = (
             select(Politician, ScoreComponent, Score)
+            .options(joinedload(Politician.party_rel))
             .join(latest_component_sq, Politician.id == latest_component_sq.c.politician_id)
             .join(ScoreComponent, ScoreComponent.id == latest_component_sq.c.component_id)
             .join(Score, Score.component_set_id == ScoreComponent.id)

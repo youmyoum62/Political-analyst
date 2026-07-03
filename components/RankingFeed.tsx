@@ -3,13 +3,23 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { DietActivityFeed } from '@/components/DietActivityFeed';
 import { FilterBar } from '@/components/FilterBar';
 import { RankingCard } from '@/components/RankingCard';
 import { ShareCard } from '@/components/ShareCard';
 import { AgeGroup, HouseFilter, filterPoliticians, getBiggestDrops, getParties, getRankedPoliticians, getRisingPoliticians } from '@/lib/api';
+import { Digest } from '@/lib/api-client';
 import { Politician } from '@/lib/types';
 
-export function RankingFeed({ ranking, limit }: { ranking: Politician[]; limit?: number }) {
+export function RankingFeed({
+  ranking,
+  limit,
+  digest,
+}: {
+  ranking: Politician[];
+  limit?: number;
+  digest?: Digest | null;
+}) {
   // limit 指定時（トップページ）は上位N件のみのプレビュー表示。フィルタと発言データなし欄は
   // 全件ページ（/ranking）側に集約し、プレビューでは出さない（絞り込みが全件リンクに
   // 引き継がれない矛盾・機能しないトグルを避けるため）。
@@ -91,6 +101,8 @@ export function RankingFeed({ ranking, limit }: { ranking: Politician[]; limit?:
           </a>
         </div>
       </section>
+
+      {digest && <DietActivityFeed digest={digest} />}
 
       <section className="flex items-baseline justify-between rounded-2xl border border-line bg-surface p-4">
         <span className="text-xs font-bold uppercase tracking-[0.2em] text-muted">暫定トップ</span>

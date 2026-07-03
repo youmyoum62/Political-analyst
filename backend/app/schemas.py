@@ -151,5 +151,37 @@ class ActivityItem(BaseModel):
     source_url: str
 
 
+class DigestSpeaker(BaseModel):
+    politician_id: int
+    name: str
+    party: Optional[str] = None
+    activity_type: str
+    source_url: str
+
+
+class DigestMinutesDay(BaseModel):
+    date: str
+    speaker_count: int
+    speakers: list[DigestSpeaker]
+
+
+class DigestBill(BaseModel):
+    id: int
+    title: str
+    status: str
+    date: Optional[str] = None
+    source_url: Optional[str] = None
+
+
+class DigestResponse(BaseModel):
+    """トップページ「国会の動き」欄。会議録の新着（発言者）と法案の動きを、
+    既存の一次データ（国会会議録API・議案DB）から集計する。"""
+    generated_at: str
+    latest_activity_date: Optional[str] = None
+    in_session: bool
+    minutes: list[DigestMinutesDay]
+    bills: list[DigestBill]
+
+
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)

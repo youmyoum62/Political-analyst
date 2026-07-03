@@ -15,10 +15,14 @@ from sqlalchemy.orm import Session
 from app.database import Base, SessionLocal, engine, get_db
 from app.logging_config import configure_logging
 from app.middleware import RequestLoggingMiddleware
-from app.repositories import AdminRepository, PoliticianRepository
+from app.repositories import AdminRepository, DigestRepository, PoliticianRepository
 from app.schemas import (
     ActivityItem,
     AnalysisDetail,
+    DigestBill,
+    DigestMinutesDay,
+    DigestResponse,
+    DigestSpeaker,
     HealthResponse,
     IngestionRunItem,
     IngestTriggerRequest,
@@ -227,6 +231,82 @@ def politician_activities(
         raise HTTPException(status_code=404, detail="Politician not found")
     service = PoliticianService(repo)
     return service.get_activities(politician_id=politician_id, limit=limit, activity_type=type)
+
+
+@v1.get("/digest", response_model=DigestResponse)
+@limiter.limit("60/minute")
+def digest(
+    request: Request,
+    session_threshold_days: int = Query(default=14, ge=1, le=90),
+    day_limit: int = Query(default=5, ge=1, le=14),
+    db: Session = Depends(get_db),
+) -> DigestResponse:
+    """トップページ「国会の動き」欄。会議録の新着（発言者）と法案の動きを
+    既存データから集計する。国会閉会中でも直近の記録を返し、in_session フラグで
+    フロントが「閉会中」表示に切り替えられるようにする。"""
+    from datetime import date as _date
+    from datetime import datetime as _dt
+
+    repo = DigestRepository(db)
+    act_rows = repo.recent_activities(row_limit=150)
+
+    # session_date ごとにグルーピングし、日ごとに発言者を重複排除（新しい日から day_limit 日分）
+    minutes: list[DigestMinutesDay] = []
+    seen_dates: dict = {}
+    for row in act_rows:
+        activity, politician, party = row
+        d = activity.session_date.isoformat()
+        if d not in seen_dates:
+            if len(seen_dates) >= day_limit:
+                continue
+            seen_dates[d] = {"speakers": [], "ids": set()}
+        bucket = seen_dates[d]
+        if politician.id in bucket["ids"]:
+            continue
+        bucket["ids"].add(politician.id)
+        party_label = None
+        if party is not None:
+            party_label = party.abbreviation or party.name_ja
+        bucket["speakers"].append(
+            DigestSpeaker(
+                politician_id=politician.id,
+                name=politician.name_ja,
+                party=party_label,
+                activity_type=activity.activity_type,
+                source_url=activity.source_url,
+            )
+        )
+
+    for d, bucket in seen_dates.items():
+        minutes.append(
+            DigestMinutesDay(date=d, speaker_count=len(bucket["speakers"]), speakers=bucket["speakers"])
+        )
+
+    bills = [
+        DigestBill(
+            id=b.id,
+            title=b.title,
+            status=b.status,
+            date=(b.passed_date or b.submitted_date).isoformat()
+            if (b.passed_date or b.submitted_date)
+            else None,
+            source_url=b.source_url,
+        )
+        for b in repo.recent_bills(limit=8)
+    ]
+
+    latest_date = act_rows[0][0].session_date if act_rows else None
+    in_session = bool(
+        latest_date and (_date.today() - latest_date).days <= session_threshold_days
+    )
+
+    return DigestResponse(
+        generated_at=_dt.utcnow().isoformat(),
+        latest_activity_date=latest_date.isoformat() if latest_date else None,
+        in_session=in_session,
+        minutes=minutes,
+        bills=bills,
+    )
 
 
 @v1.get("/analysis/{politician_id}", response_model=AnalysisDetail)
