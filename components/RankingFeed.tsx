@@ -15,10 +15,12 @@ export function RankingFeed({
   ranking,
   limit,
   digest,
+  initialPrefecture = 'All',
 }: {
   ranking: Politician[];
   limit?: number;
   digest?: Digest | null;
+  initialPrefecture?: string;
 }) {
   // limit 指定時（トップページ）は上位N件のみのプレビュー表示。フィルタと発言データなし欄は
   // 全件ページ（/ranking）側に集約し、プレビューでは出さない（絞り込みが全件リンクに
@@ -30,15 +32,27 @@ export function RankingFeed({
   const [gender, setGender] = useState('All');
   const [house, setHouse] = useState<HouseFilter>('All');
   const [query, setQuery] = useState('');
+  const [prefecture, setPrefecture] = useState(initialPrefecture);
   const [showInactive, setShowInactive] = useState(false);
+
+  // 都道府県は URL(?pref=) と同期し、絞り込み結果を共有可能にする（全件ページのみ）。
+  const changePrefecture = (value: string) => {
+    setPrefecture(value);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (value === 'All') url.searchParams.delete('pref');
+      else url.searchParams.set('pref', value);
+      window.history.replaceState(null, '', url);
+    }
+  };
 
   const sorted = useMemo(() => getRankedPoliticians(ranking), [ranking]);
   const parties = useMemo(() => getParties(ranking), [ranking]);
   const inactiveCount = useMemo(() => ranking.filter((p) => p.isInactive).length, [ranking]);
 
   const filtered = useMemo(
-    () => filterPoliticians(sorted, { ageGroup, party, gender, house, query, showInactive }),
-    [ageGroup, party, gender, house, query, showInactive, sorted]
+    () => filterPoliticians(sorted, { ageGroup, party, gender, house, query, prefecture, showInactive }),
+    [ageGroup, party, gender, house, query, prefecture, showInactive, sorted]
   );
 
   const rising = useMemo(() => getRisingPoliticians(ranking), [ranking]);
@@ -119,6 +133,7 @@ export function RankingFeed({
           gender={gender}
           house={house}
           query={query}
+          prefecture={prefecture}
           parties={parties}
           showInactive={showInactive}
           inactiveCount={inactiveCount}
@@ -127,6 +142,7 @@ export function RankingFeed({
           onGenderChange={setGender}
           onHouseChange={setHouse}
           onQueryChange={setQuery}
+          onPrefectureChange={changePrefecture}
           onShowInactiveChange={setShowInactive}
         />
       )}

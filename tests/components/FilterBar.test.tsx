@@ -13,6 +13,7 @@ function setup(overrides: Partial<FilterBarProps> = {}) {
     gender: 'All',
     house: 'All',
     query: '',
+    prefecture: 'All',
     parties: ['All', '自民党', '立憲'],
     showInactive: false,
     inactiveCount: 5,
@@ -21,6 +22,7 @@ function setup(overrides: Partial<FilterBarProps> = {}) {
     onGenderChange: vi.fn(),
     onHouseChange: vi.fn(),
     onQueryChange: vi.fn(),
+    onPrefectureChange: vi.fn(),
     onShowInactiveChange: vi.fn(),
     ...overrides,
   };
@@ -36,6 +38,14 @@ describe('FilterBar', () => {
     expect(screen.getByLabelText('年代で絞り込む')).toBeInTheDocument();
     expect(screen.getByLabelText('党派で絞り込む')).toBeInTheDocument();
     expect(screen.getByLabelText('性別で絞り込む')).toBeInTheDocument();
+    expect(screen.getByLabelText('都道府県で絞り込む')).toBeInTheDocument();
+  });
+
+  it('都道府県セレクトの変更で onPrefectureChange を呼ぶ', async () => {
+    const user = userEvent.setup();
+    const props = setup();
+    await user.selectOptions(screen.getByLabelText('都道府県で絞り込む'), '東京');
+    expect(props.onPrefectureChange).toHaveBeenCalledWith('東京');
   });
 
   it('検索入力で onQueryChange を呼ぶ', async () => {
@@ -101,6 +111,7 @@ describe('FilterBar', () => {
         gender="All"
         house="All"
         query=""
+        prefecture="All"
         parties={['All', '自民党']}
         showInactive={false}
         inactiveCount={3}
@@ -109,6 +120,7 @@ describe('FilterBar', () => {
         onGenderChange={vi.fn()}
         onHouseChange={vi.fn()}
         onQueryChange={vi.fn()}
+        onPrefectureChange={vi.fn()}
         onShowInactiveChange={vi.fn()}
       />,
     );

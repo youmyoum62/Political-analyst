@@ -1,6 +1,7 @@
 'use client';
 
 import { AgeGroup, HouseFilter } from '@/lib/api';
+import { PREFECTURES } from '@/lib/district';
 
 type Props = {
   ageGroup: AgeGroup;
@@ -8,6 +9,7 @@ type Props = {
   gender: string;
   house: HouseFilter;
   query: string;
+  prefecture: string;
   parties: string[];
   showInactive: boolean;
   inactiveCount: number;
@@ -16,6 +18,7 @@ type Props = {
   onGenderChange: (value: string) => void;
   onHouseChange: (value: HouseFilter) => void;
   onQueryChange: (value: string) => void;
+  onPrefectureChange: (value: string) => void;
   onShowInactiveChange: (value: boolean) => void;
 };
 
@@ -26,9 +29,9 @@ const HOUSE_OPTIONS: { value: HouseFilter; label: string }[] = [
 ];
 
 export function FilterBar({
-  ageGroup, party, gender, house, query, parties, showInactive, inactiveCount,
+  ageGroup, party, gender, house, query, prefecture, parties, showInactive, inactiveCount,
   onAgeGroupChange, onPartyChange, onGenderChange, onHouseChange,
-  onQueryChange, onShowInactiveChange,
+  onQueryChange, onPrefectureChange, onShowInactiveChange,
 }: Props) {
   return (
     <div className="sticky top-0 z-20 -mx-6 mb-4 border-y border-line bg-canvas/95 px-6 py-3 backdrop-blur-xl">
@@ -101,6 +104,18 @@ export function FilterBar({
             <option value="Male">男性</option>
           </select>
 
+          <select
+            aria-label="都道府県で絞り込む"
+            className="rounded-full border border-line bg-canvas px-3 py-1.5 text-xs font-semibold text-muted focus:border-accent focus:outline-none"
+            value={prefecture}
+            onChange={(e) => onPrefectureChange(e.target.value)}
+          >
+            <option value="All">都道府県 ▾</option>
+            {PREFECTURES.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+
           <button
             onClick={() => onShowInactiveChange(!showInactive)}
             className={`ml-auto rounded-full border px-3 py-1.5 text-xs font-bold transition ${
@@ -110,13 +125,14 @@ export function FilterBar({
             発言データなし {showInactive ? '表示中' : `(${inactiveCount}名)`}
           </button>
 
-          {(ageGroup !== 'All' || party !== 'All' || gender !== 'All' || house !== 'All' || query !== '') && (
+          {(ageGroup !== 'All' || party !== 'All' || gender !== 'All' || house !== 'All' || prefecture !== 'All' || query !== '') && (
             <button
               onClick={() => {
                 onAgeGroupChange('All');
                 onPartyChange('All');
                 onGenderChange('All');
                 onHouseChange('All');
+                onPrefectureChange('All');
                 onQueryChange('');
               }}
               className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-muted transition hover:text-ink"

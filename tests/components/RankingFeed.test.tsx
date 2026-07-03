@@ -46,4 +46,14 @@ describe('RankingFeed', () => {
     expect(screen.getByText('え四郎')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /名のランキングを見る/ })).toBeNull();
   });
+
+  it('initialPrefecture で都道府県フィルタが初期適用される', () => {
+    const list = [
+      makePolitician({ id: 1, name: '東京太郎', district: '東京1', score: 90, rank: 1 }),
+      makePolitician({ id: 2, name: '大阪次郎', district: '大阪3', score: 80, rank: 2 }),
+    ];
+    render(<RankingFeed ranking={list} initialPrefecture="東京" />);
+    expect(screen.getByRole('link', { name: /東京太郎/ })).toBeInTheDocument();
+    expect(screen.queryByText('大阪次郎')).toBeNull();
+  });
 });

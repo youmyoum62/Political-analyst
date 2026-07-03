@@ -1,3 +1,4 @@
+import { extractPrefectures } from '@/lib/district';
 import { Politician } from '@/lib/types';
 
 export type AgeGroup = 'All' | '20s-30s' | '40s-50s' | '60+';
@@ -36,6 +37,7 @@ export type FilterOptions = {
   house: HouseFilter;
   query: string;
   showInactive: boolean;
+  prefecture?: string;
 };
 
 export function filterPoliticians(
@@ -43,6 +45,7 @@ export function filterPoliticians(
   options: FilterOptions,
 ): Politician[] {
   const q = options.query.trim().toLowerCase();
+  const prefecture = options.prefecture ?? 'All';
 
   return data.filter((person) => {
     if (!options.showInactive && person.isInactive) return false;
@@ -56,13 +59,15 @@ export function filterPoliticians(
     const partyPass = options.party === 'All' || person.party === options.party;
     const genderPass = options.gender === 'All' || person.gender === options.gender;
     const housePass = options.house === 'All' || person.house === options.house;
+    const prefecturePass =
+      prefecture === 'All' || extractPrefectures(person.district).includes(prefecture);
     const queryPass =
       q === '' ||
       person.name.toLowerCase().includes(q) ||
       person.party.toLowerCase().includes(q) ||
       (person.district ?? '').toLowerCase().includes(q);
 
-    return ageGroupPass && partyPass && genderPass && housePass && queryPass;
+    return ageGroupPass && partyPass && genderPass && housePass && prefecturePass && queryPass;
   });
 }
 
