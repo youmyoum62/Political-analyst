@@ -159,7 +159,8 @@ class PoliticianRepository:
             .where(Politician.is_active == True)  # noqa: E712
             .order_by(Score.final_score.desc(), Politician.id.asc())
         )
-        return list(self.db.execute(stmt).all())
+        # Row は tuple 互換だが mypy は list[tuple] と厳密一致しないため無視する（実行時安全）。
+        return list(self.db.execute(stmt).all())  # type: ignore[arg-type]
 
     def get_score_history(self, politician_id: int, limit: int = 12) -> list[tuple]:
         """議員のスコア履歴を古い順で返す (ScoreComponent, Score) のタプルリスト。"""
@@ -170,7 +171,7 @@ class PoliticianRepository:
             .order_by(ScoreComponent.computed_at.asc())
             .limit(limit)
         )
-        return list(self.db.execute(stmt).all())
+        return list(self.db.execute(stmt).all())  # type: ignore[arg-type]
 
     def get_activities(
         self,
@@ -194,7 +195,7 @@ class PoliticianRepository:
             )
             .limit(limit)
         )
-        return list(self.db.execute(stmt).all())
+        return list(self.db.execute(stmt).all())  # type: ignore[arg-type]
 
     def get_trend_map(self) -> dict[int, int]:
         """

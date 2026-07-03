@@ -45,7 +45,7 @@ def configure_logging(level: str | None = None) -> None:
     global _configured
     if _configured:
         return
-    log_level = (level or os.getenv("LOG_LEVEL", "INFO")).upper()
+    log_level = (level or os.getenv("LOG_LEVEL") or "INFO").upper()
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     root = logging.getLogger()

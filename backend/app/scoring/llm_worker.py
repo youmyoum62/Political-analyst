@@ -36,7 +36,7 @@ def _llm_availability() -> tuple[bool, str]:
     if not os.getenv("OPENAI_API_KEY"):
         return False, "OPENAI_API_KEY が未設定"
     try:
-        import openai  # type: ignore  # noqa: F401
+        import openai  # noqa: F401
     except ImportError:
         return False, "openai パッケージが未インストール"
     return True, ""
@@ -49,14 +49,14 @@ async def _call_llm(messages: list[dict]) -> dict:
         raise RuntimeError("OPENAI_API_KEY not set")
 
     try:
-        import openai  # type: ignore
+        import openai
     except ImportError as exc:
         raise RuntimeError("openai package not installed") from exc
 
     client = openai.AsyncOpenAI(api_key=api_key)
     model = os.getenv("LLM_MODEL", "gpt-4o-mini")
 
-    resp = await client.chat.completions.create(
+    resp = await client.chat.completions.create(  # type: ignore[call-overload]
         model=model,
         messages=messages,
         temperature=0.1,

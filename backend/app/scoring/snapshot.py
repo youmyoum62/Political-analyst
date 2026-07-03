@@ -129,8 +129,8 @@ def _build_raw_metrics(
         )
         .all()
     )
-    m.llm_scores = [float(r.quality_score) for r in llm_rows]
-    m.llm_confidences = [float(r.confidence) for r in llm_rows]
+    m.llm_scores = [float(r.quality_score) for r in llm_rows if r.quality_score is not None]
+    m.llm_confidences = [float(r.confidence) for r in llm_rows if r.confidence is not None]
 
     # 立法系（BillSponsor 経由）
     sponsored = (

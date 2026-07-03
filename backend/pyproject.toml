@@ -9,3 +9,11 @@ ignore = ["E712", "E501"]  # SQLAlchemy "== True" comparisons; long lines allowe
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["F811"]
+
+[tool.mypy]
+python_version = "3.12"
+# サードパーティ（requests / bs4 等）はスタブ未提供のため未解決 import を無視する。
+ignore_missing_imports = true
+# app パッケージを対象にする（scripts は外部スクレイピング中心で型付けの費用対効果が低い）。
+files = ["app"]
+warn_unused_ignores = true

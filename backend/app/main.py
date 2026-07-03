@@ -90,7 +90,7 @@ app = FastAPI(
     openapi_url="/openapi.json" if _DOCS_ENABLED else None,
 )
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 app.add_middleware(RequestLoggingMiddleware)
 
 # Host ヘッダ検証（任意）。ALLOWED_HOSTS が設定された場合のみ有効化する。
@@ -285,14 +285,16 @@ def digest(
             DigestMinutesDay(date=d, speaker_count=len(bucket["speakers"]), speakers=bucket["speakers"])
         )
 
+    def _bill_date(b) -> str | None:
+        d = b.passed_date or b.submitted_date
+        return d.isoformat() if d else None
+
     bills = [
         DigestBill(
             id=b.id,
             title=b.title,
             status=b.status,
-            date=(b.passed_date or b.submitted_date).isoformat()
-            if (b.passed_date or b.submitted_date)
-            else None,
+            date=_bill_date(b),
             source_url=b.source_url,
         )
         for b in repo.recent_bills(limit=8)
@@ -551,7 +553,7 @@ def clear_seed_data(
 
     result = db.execute(text("DELETE FROM politicians WHERE external_ref IS NULL"))
     db.commit()
-    return {"dry_run": False, "deleted_politicians": result.rowcount}
+    return {"dry_run": False, "deleted_politicians": result.rowcount}  # type: ignore[attr-defined]
 
 
 app.include_router(admin)
