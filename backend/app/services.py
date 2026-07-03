@@ -1,4 +1,5 @@
 from app.models import Politician
+from app.party_normalize import normalize_party
 from app.repositories import PoliticianRepository
 from app.schemas import (
     ActivityItem,
@@ -12,8 +13,10 @@ from app.scoring.calculator import ROLE_WEIGHTS
 
 def _party_name(politician: Politician) -> str:
     # party_rel は list_ranking / list_politicians で joinedload 済み（N+1 回避）。
+    # 会派名は normalize_party で正規化し、一覧・詳細・政党ページで表示を一致させる
+    # （切り詰めゆれの統合、短縮表記→正式名称の展開）。
     party = politician.party_rel
-    return party.name_ja if party else "無所属"
+    return normalize_party(party.name_ja if party else None)
 
 
 class PoliticianService:
