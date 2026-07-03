@@ -110,16 +110,15 @@ export async function fetchRanking(): Promise<Politician[]> {
 
 /**
  * ビルドを止めないランキング取得。sitemap 生成で使う。
- * - ビルド時（NEXT_PHASE=phase-production-build）: 15秒で即諦めて空配列。Render の
- *   コールドスタートでビルドを失敗させない（sitemap は固定ページのみになる）。
- * - ランタイム（ISR の再生成）: 120秒待つ。ビルドの 60秒静的生成上限に縛られないため、
- *   コールドスタート(~100秒)を吸収でき、温まり次第 sitemap が全議員分に回復する。
+ * 単発・50秒タイムアウト。ビルドの静的生成上限（60秒）と Vercel Hobby の
+ * ファンクション実行上限（~60秒）の双方に収めるための値。
+ * Render のコールドスタート中で 50秒に間に合わなくても空配列を返してビルド/再生成を
+ * 失敗させず、その試行が Render を起こすため、次の再生成（revalidate 300秒）で
+ * 全議員分に回復する。
  * ユーザー可視ページ（home/compare）では throw する fetchRanking を使い、API ダウンを
  * 空表示でサイレントに隠さない。
  */
-export async function fetchRankingSafe(): Promise<Politician[]> {
-  const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
-  const timeoutMs = isBuild ? 15_000 : 120_000;
+export async function fetchRankingSafe(timeoutMs = 50_000): Promise<Politician[]> {
   try {
     const res = await fetch(`${API_BASE}/v1/ranking`, {
       signal: AbortSignal.timeout(timeoutMs),
