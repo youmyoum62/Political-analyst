@@ -93,3 +93,12 @@ jobs:
             python -m scripts.ingest --days "${INGEST_DAYS}" --limit "${INGEST_LIMIT}"
           fi
           echo "完了"
+
+  notify:
+    needs: [ingest]
+    if: failure()
+    permissions:
+      issues: write
+    uses: ./.github/workflows/notify-failure.yml
+    with:
+      workflow_name: Scheduled Ingest & Snapshot

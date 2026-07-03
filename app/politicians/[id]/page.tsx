@@ -88,8 +88,18 @@ function KeyAchievementSection({
   detail: ApiPoliticianDetail;
   activities: ApiActivityItem[];
 }) {
-  if (detail.key_achievement) {
-    return <p className="mt-2 text-sm text-ink">{detail.key_achievement}</p>;
+  // 立法・政策の実データが皆無なら、AI生成の実績要約は根拠を欠くため表示しない
+  // （裏付けのない「実績」の提示を避ける）。
+  const hasLegislativeEvidence =
+    detail.legislative_score > 0 || detail.policy_impact_score > 0;
+
+  if (detail.key_achievement && hasLegislativeEvidence) {
+    return (
+      <>
+        <p className="mt-2 text-sm text-ink">{detail.key_achievement}</p>
+        <p className="mt-1 text-xs text-muted">※ この実績要約はAIが公開データを基に生成したものです。</p>
+      </>
+    );
   }
 
   const achievementActivity = activities.find(
@@ -104,7 +114,7 @@ function KeyAchievementSection({
 
   return (
     <p className="mt-2 text-sm text-muted">
-      立法・政策への関与記録はまだ登録されていません
+      立法・政策の実績データはまだ十分に収集されていません
     </p>
   );
 }

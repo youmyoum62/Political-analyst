@@ -71,3 +71,12 @@ jobs:
           python scripts/recompute_snapshot.py \
             --period-start "${PERIOD_START}" \
             --period-end "${PERIOD_END}"
+
+  notify:
+    needs: [recompute]
+    if: failure()
+    permissions:
+      issues: write
+    uses: ./.github/workflows/notify-failure.yml
+    with:
+      workflow_name: Recompute Score Snapshot

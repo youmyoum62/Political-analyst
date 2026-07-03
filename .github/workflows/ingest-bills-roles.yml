@@ -94,3 +94,12 @@ jobs:
           python scripts/ingest_roles.py ${DRY} ${SANGIIN_ARGS}
 
           echo "=== 完了 ==="
+
+  notify:
+    needs: [ingest]
+    if: failure()
+    permissions:
+      issues: write
+    uses: ./.github/workflows/notify-failure.yml
+    with:
+      workflow_name: Ingest Bills & Roles
