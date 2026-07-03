@@ -3,10 +3,13 @@ import type { MetadataRoute } from 'next';
 import { fetchRankingSafe } from '@/lib/api-client';
 import { SITE_URL } from '@/lib/site';
 
-// sitemap は5分ごとに再生成。API 不達でも固定ページ分は必ず出力し（fetchRankingSafe が
-// 空配列を返す）、コールドスタート中にビルドされ議員URLが欠けても、次の再生成
-// （ランタイム120秒タイムアウトでコールドスタートを吸収）で全議員分に速やかに回復する。
-export const revalidate = 300;
+// sitemap は24時間ごとに再生成。Render 無料枠のコールドスタート(最大~104秒)は
+// ビルド上限(60秒)も Vercel Hobby のファンクション上限(~60秒)も超えるため、単発の
+// ランタイム再生成ではデータ取得を保証できない。短い revalidate だと5分ごとに
+// コールドな API へ再生成を試み、失敗すると空へ戻る「フラッピング」を起こす。
+// そこで長い revalidate にし、Render を温めた状態でビルドして取り込んだ良い版(全議員分)を
+// 1日保持する。恒久策は Render の keep-warm cron（別タスク）。
+export const revalidate = 86400;
 
 const STATIC_ROUTES: { path: string; priority: number }[] = [
   { path: '', priority: 1 },
