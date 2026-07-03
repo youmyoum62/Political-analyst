@@ -12,9 +12,8 @@ export const SITE_DESCRIPTION =
 // 運営者情報。
 // 表示名は屋号・サイト名義で公開（ユーザー選択）。別の屋号にしたい場合はここを変更する。
 export const SITE_OPERATOR = '政治スコアメディア編集部';
-// TODO(運営者): 公開用の問い合わせメールアドレスを設定する（別アドレス希望・未取得のため
-// 現在は未設定＝/about・プライバシーに「準備中」と表示）。AdSense 申請前に設定が必要。
-export const SITE_CONTACT_EMAIL = '';
+// 公開用の問い合わせメールアドレス（屋号名義・中立運営のためロールアドレス）。
+export const SITE_CONTACT_EMAIL = 'seijiscore.media@outlook.jp';
 
 // 寄付導線。
 // TODO(運営者): OFUSE / Ko-fi 等でアカウントを作成し、その公開URLをここに設定すると
