@@ -47,6 +47,18 @@ def _p95(values: list[float]) -> float:
     return max(result, 1.0)
 
 
+def _safe_p95(values: list[float], min_count: int = 20) -> float:
+    """0が大半を占める疎な指標（共同提案・審議中など）の正規化基準。
+    非ゼロの母集団で p95 を取る。非ゼロが min_count 未満のときは p95 が不安定に
+    なるため、非ゼロの最大値をフォールバック基準とする（1.0 未満にはしない）。"""
+    positives = [v for v in values if v > 0]
+    if len(positives) >= min_count:
+        return _p95(positives)
+    if positives:
+        return max(max(positives), 1.0)
+    return 1.0
+
+
 def _count_crossparty_passed(db: Session, bill_ids: list[int]) -> int:
     """成立法案のうち、提出者の所属会派が3党以上にまたがる件数を返す。"""
     if not bill_ids:
@@ -195,6 +207,8 @@ def _build_norm_context(
     """対象議員全員の指標からp95正規化コンテキストを作る。"""
     speech_vals, question_vals, primary_vals, passed_vals = [], [], [], []
     contribution_vals: list[float] = []
+    co_vals: list[float] = []
+    committee_vals: list[float] = []
 
     for pid in politician_ids:
         m = _build_raw_metrics(pid, db, period_start, period_end, cache=cache)
@@ -203,13 +217,18 @@ def _build_norm_context(
         primary_vals.append(float(m.bills_primary))
         passed_vals.append(float(m.bills_passed_primary + m.bills_passed_co))
         contribution_vals.append(float(m.bills_passed_primary * 2 + m.bills_passed_co))
+        co_vals.append(float(m.bills_co_sponsored))
+        committee_vals.append(float(m.bills_in_committee))
 
     return NormContext(
         speech_p95=_p95(speech_vals),
         question_p95=_p95(question_vals),
         bills_primary_p95=_p95(primary_vals),
         bills_passed_p95=_p95(passed_vals),
-        contribution_p95=_p95(contribution_vals),
+        # 疎な指標（成立寄与・共同提案・審議中）は非ゼロ母集団で基準を取る。
+        contribution_p95=_safe_p95(contribution_vals),
+        co_p95=_safe_p95(co_vals),
+        committee_p95=_safe_p95(committee_vals),
         role_weight_p95=20.0,
     )
 

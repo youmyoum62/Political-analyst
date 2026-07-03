@@ -165,3 +165,14 @@ def test_per_house_normalization(db):
     scores = {s.politician_id: s.final_score for s in db.query(Score).all()}
     # 院別正規化により、参議員も自院母集団(1名)基準で発言量が満点正規化され0点ではない
     assert scores[san.id] > 0
+
+
+def test_safe_p95_sparse_and_dense():
+    from app.scoring.snapshot import _safe_p95
+    # 非ゼロが min_count 未満 → 非ゼロ最大値をフォールバック基準にする
+    assert _safe_p95([0, 0, 0, 5, 3], min_count=20) == 5.0
+    # 全ゼロ → 1.0（ゼロ割回避）
+    assert _safe_p95([0, 0, 0], min_count=20) == 1.0
+    # 非ゼロが十分 → p95（最大値付近、1.0以上）
+    vals = [float(i) for i in range(1, 101)]
+    assert _safe_p95(vals, min_count=20) >= 90.0

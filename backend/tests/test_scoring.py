@@ -149,6 +149,17 @@ class TestLegislativeScore:
         m_submitted = RawMetrics(bills_primary=10)
         assert compute_legislative_score(m_passed, ctx) > compute_legislative_score(m_submitted, ctx)
 
+    def test_co_and_committee_use_p95_normalization(self):
+        # 固定分母(/10,/5)ではなく co_p95/committee_p95 で正規化されること。
+        ctx = NormContext(co_p95=20.0, committee_p95=8.0)
+        # co=20 は co_p95=20 でちょうど満点相当の寄与（15%重み）
+        m_full_co = RawMetrics(bills_co_sponsored=20)
+        m_half_co = RawMetrics(bills_co_sponsored=10)
+        assert compute_legislative_score(m_full_co, ctx) > compute_legislative_score(m_half_co, ctx)
+        # p95 以上は 100 に張り付く（外れ値が基準を壊さない）
+        m_over = RawMetrics(bills_co_sponsored=1000)
+        assert compute_legislative_score(m_over, ctx) == compute_legislative_score(m_full_co, ctx)
+
 
 # ─── compute_policy_impact_score ──────────────────────────────────────────
 

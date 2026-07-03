@@ -114,6 +114,8 @@ class NormContext:
     bills_primary_p95: float = 1.0
     bills_passed_p95: float = 1.0
     contribution_p95: float = 1.0   # policy_impact 用（passed_primary*2 + passed_co のp95）
+    co_p95: float = 1.0             # 共同提案数の正規化基準
+    committee_p95: float = 1.0      # 審議中法案数の正規化基準
     role_weight_p95: float = 1.0
 
 
@@ -185,8 +187,10 @@ def compute_legislative_score(m: RawMetrics, ctx: NormContext) -> float:
     passed_total = m.bills_passed_primary + m.bills_passed_co
     passed_norm = winsorize_normalize(passed_total, ctx.bills_passed_p95)
     primary_norm = winsorize_normalize(m.bills_primary, ctx.bills_primary_p95)
-    co_norm = min(100.0, (m.bills_co_sponsored / 10.0) * 100.0)
-    committee_norm = min(100.0, (m.bills_in_committee / 5.0) * 100.0)
+    # 固定分母(/10, /5)は母集団分布を無視し、共同提案・審議中の多い議員を過大/過小評価
+    # していた。他指標と同じく母集団p95によるウィンソライズ正規化に統一する。
+    co_norm = winsorize_normalize(m.bills_co_sponsored, ctx.co_p95)
+    committee_norm = winsorize_normalize(m.bills_in_committee, ctx.committee_p95)
 
     return round(
         passed_norm * 0.50
