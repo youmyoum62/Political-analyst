@@ -110,6 +110,9 @@ export function RankingFeed({
           <Link href="/compare" className="rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-canvas transition hover:opacity-90">
             議員を比較する
           </Link>
+          <Link href="/parties" className="rounded-lg border border-line px-5 py-2.5 text-sm font-bold transition hover:bg-white/5">
+            政党別に見る
+          </Link>
           <a href="#ranking-feed" className="rounded-lg border border-line px-5 py-2.5 text-sm font-bold transition hover:bg-white/5">
             ランキングを見る
           </a>

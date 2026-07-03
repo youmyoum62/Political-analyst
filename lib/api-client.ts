@@ -275,6 +275,38 @@ export async function fetchDigest(): Promise<Digest | null> {
   }
 }
 
+export type PartySummary = {
+  name: string;
+  member_count: number;
+  avg_score: number;
+  median_score: number;
+  representatives: number;
+  councillors: number;
+};
+
+export type PartyMember = {
+  id: number;
+  name: string;
+  house: string;
+  final_score: number;
+  rank: number | null;
+};
+
+export type PartyDetail = PartySummary & { members: PartyMember[] };
+
+export async function fetchParties(): Promise<PartySummary[]> {
+  const data = await fetchJson<PartySummary[]>('/v1/parties');
+  if (!Array.isArray(data)) throw new Error('API response format error: /v1/parties did not return an array');
+  return data;
+}
+
+export async function fetchPartyDetail(name: string): Promise<PartyDetail | null> {
+  const res = await fetchWithRetry(`${API_BASE}/v1/parties/${encodeURIComponent(name)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiRequestError(`/v1/parties/${name}`, res.status, res.statusText);
+  return res.json();
+}
+
 export type ApiActivityItem = {
   id: number;
   activity_type: 'question' | 'speech' | 'attendance' | 'committee_action';

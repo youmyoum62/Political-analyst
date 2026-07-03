@@ -183,5 +183,32 @@ class DigestResponse(BaseModel):
     bills: list[DigestBill]
 
 
+class PartySummary(BaseModel):
+    name: str
+    member_count: int
+    avg_score: float
+    median_score: float
+    representatives: int
+    councillors: int
+
+
+class PartyMember(BaseModel):
+    id: int
+    name: str
+    house: str
+    final_score: float
+    rank: Optional[int] = None
+
+
+class PartyDetail(BaseModel):
+    name: str
+    member_count: int
+    avg_score: float
+    median_score: float
+    representatives: int
+    councillors: int
+    members: list[PartyMember]
+
+
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)

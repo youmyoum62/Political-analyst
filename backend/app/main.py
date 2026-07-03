@@ -28,6 +28,9 @@ from app.schemas import (
     IngestTriggerRequest,
     IngestTriggerResponse,
     PaginatedResponse,
+    PartyDetail,
+    PartyMember,
+    PartySummary,
     PoliticianDetail,
     PoliticianListItem,
     RankingItem,
@@ -306,6 +309,89 @@ def digest(
         in_session=in_session,
         minutes=minutes,
         bills=bills,
+    )
+
+
+def _party_groups(db: Session) -> dict[str, list[tuple]]:
+    """最新スナップショットの現職を正規化政党名でグルーピングして
+    {政党名: [(Politician, Score), ...]} を返す。"""
+    from collections import defaultdict
+
+    from app.party_normalize import normalize_party
+
+    rows = PoliticianRepository(db).list_ranking()
+    groups: dict[str, list[tuple]] = defaultdict(list)
+    for politician, _component, score in rows:
+        party = normalize_party(
+            politician.party_rel.name_ja if politician.party_rel else None
+        )
+        groups[party].append((politician, score))
+    return groups
+
+
+def _median(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    s = sorted(values)
+    n = len(s)
+    mid = n // 2
+    return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
+
+
+@v1.get("/parties", response_model=list[PartySummary])
+@limiter.limit("30/minute")
+def parties(request: Request, db: Session = Depends(get_db)) -> list[PartySummary]:
+    """政党別の集計（人数・平均/中央値スコア・院別内訳）。会派間の優劣ではなく分布を示す。"""
+    groups = _party_groups(db)
+    summaries: list[PartySummary] = []
+    for name, members in groups.items():
+        scores = [s.final_score for _p, s in members]
+        avg = sum(scores) / len(scores) if scores else 0.0
+        summaries.append(
+            PartySummary(
+                name=name,
+                member_count=len(members),
+                avg_score=round(avg, 1),
+                median_score=round(_median(scores), 1),
+                representatives=sum(1 for p, _s in members if p.house == "representatives"),
+                councillors=sum(1 for p, _s in members if p.house == "councillors"),
+            )
+        )
+    # 人数の多い順（スコア順にすると政党ランキングに見えるため避ける）
+    summaries.sort(key=lambda x: x.member_count, reverse=True)
+    return summaries
+
+
+@v1.get("/parties/{name}", response_model=PartyDetail)
+@limiter.limit("30/minute")
+def party_detail(request: Request, name: str, db: Session = Depends(get_db)) -> PartyDetail:
+    groups = _party_groups(db)
+    members = groups.get(name)
+    if not members:
+        raise HTTPException(status_code=404, detail="Party not found")
+
+    scores = [s.final_score for _p, s in members]
+    avg = sum(scores) / len(scores) if scores else 0.0
+    member_items = [
+        PartyMember(
+            id=p.id,
+            name=p.name_ja,
+            house=p.house,
+            final_score=s.final_score,
+            rank=s.rank_snapshot,
+        )
+        for p, s in members
+    ]
+    member_items.sort(key=lambda m: m.final_score, reverse=True)
+
+    return PartyDetail(
+        name=name,
+        member_count=len(members),
+        avg_score=round(avg, 1),
+        median_score=round(_median(scores), 1),
+        representatives=sum(1 for p, _s in members if p.house == "representatives"),
+        councillors=sum(1 for p, _s in members if p.house == "councillors"),
+        members=member_items,
     )
 
 

@@ -1,0 +1,21 @@
+"""
+会派・政党名の正規化（保守版）。
+
+improvement_plan ② の会派名一元正規化の最小版。ここでは「同一政党名の明らかな
+切り詰め」だけを高信頼度で統合する。略称の異政党統合（民主→立憲/国民 等）や、
+列ズレ疑いのある値（中道 など）は、誤マージ・捏造を避けるためここでは扱わない
+（本格的な正規化・データ是正は ②/③ で行う）。
+"""
+
+# 同一政党名の切り詰めゆれのみ（実データ /v1/ranking を調査して確認）
+PARTY_ALIASES: dict[str, str] = {
+    "みら": "みらい",
+    "無": "無所属",
+}
+
+
+def normalize_party(name: str | None) -> str:
+    if not name or not name.strip():
+        return "無所属"
+    n = name.strip()
+    return PARTY_ALIASES.get(n, n)
