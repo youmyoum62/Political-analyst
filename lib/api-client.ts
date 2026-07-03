@@ -108,6 +108,30 @@ export async function fetchRanking(): Promise<Politician[]> {
   return data.map(rankingItemToPolitician);
 }
 
+/**
+ * ビルドを止めないランキング取得。sitemap 生成など、API 到達不可でも
+ * ビルドを失敗させたくない箇所で使う。
+ * fetchRanking（最大 ~90 秒リトライ）と違い、単発・短タイムアウトで即座に諦めて
+ * 空配列を返す。Render のコールドスタート中にビルドすると sitemap は固定ページのみに
+ * なるが、revalidate(3600秒) で温まり次第オンデマンド再生成される。
+ * ユーザー可視ページ（home/compare）では throw する fetchRanking を使い、API ダウンを
+ * 空表示でサイレントに隠さない。
+ */
+export async function fetchRankingSafe(timeoutMs = 15_000): Promise<Politician[]> {
+  try {
+    const res = await fetch(`${API_BASE}/v1/ranking`, {
+      signal: AbortSignal.timeout(timeoutMs),
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return (data as ApiRankingItem[]).map(rankingItemToPolitician);
+  } catch {
+    return [];
+  }
+}
+
 export type ApiPoliticianDetail = {
   id: number;
   name: string;

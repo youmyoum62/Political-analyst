@@ -16,6 +16,7 @@ import {
   fetchPoliticianDetail,
   fetchScoreHistory,
 } from '@/lib/api-client';
+import { SITE_URL } from '@/lib/site';
 
 const ROLE_LABELS: Record<string, string> = {
   opposition: '野党議員',
@@ -134,6 +135,7 @@ export async function generateMetadata(
   return {
     title,
     description,
+    alternates: { canonical: `/politicians/${id}` },
     openGraph: { title, description, type: 'profile' },
     twitter: { card: 'summary', title, description },
   };
@@ -158,6 +160,30 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   const hasRealSummary = Boolean(detail.summary);
   const summaryText = detail.summary || generateSummary(detail);
 
+  const canonical = `${SITE_URL}/politicians/${politicianId}`;
+  const houseLabel = HOUSE_LABELS[detail.house] ?? detail.house;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Person',
+        name: detail.name,
+        jobTitle: '国会議員',
+        affiliation: { '@type': 'Organization', name: detail.party },
+        memberOf: { '@type': 'Organization', name: houseLabel },
+        url: canonical,
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'トップ', item: SITE_URL },
+          { '@type': 'ListItem', position: 2, name: '全議員ランキング', item: `${SITE_URL}/ranking` },
+          { '@type': 'ListItem', position: 3, name: detail.name, item: canonical },
+        ],
+      },
+    ],
+  };
+
   // データ未収集の評価軸（暫定スコアの透明性のため明示する）
   const uncollectedAxes: string[] = [];
   if (detail.legislative_score === 0) uncollectedAxes.push('立法実績');
@@ -167,6 +193,10 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Link href="/" className="text-sm font-semibold text-accent hover:underline">
         ← ランキングに戻る
       </Link>

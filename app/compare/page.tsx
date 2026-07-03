@@ -1,6 +1,7 @@
 import { CompareFeed } from '@/components/CompareFeed';
 import { fetchRanking } from '@/lib/api-client';
 
+// force-dynamic を維持（home と同理由: コールドスタートで ISR ビルドが失敗するため）。
 export const dynamic = 'force-dynamic';
 
 export default async function ComparePage() {
