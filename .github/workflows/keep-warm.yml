@@ -1,0 +1,38 @@
+name: Keep Render Warm
+
+# Render 無料枠は 15 分の無通信でスリープし、次アクセスで最大 ~104 秒のコールドスタートが
+# 発生する。これが Vercel Hobby のファンクション上限(~60秒)やビルドの静的生成上限(60秒)を
+# 超えると、sitemap 生成が空になったり home の SSR fetch が遅く/失敗したりする。
+# 10 分ごとに /health を叩いて常時温めておく（フロントの体感速度と sitemap の信頼性を底上げ）。
+#
+# 注: schedule はデフォルトブランチ(main)のワークフローで起動する。
+# GitHub Actions の cron はランナー混雑時に数分遅延することがあるため、15分の
+# スリープ閾値に対し 10 分間隔で余裕を持たせている。
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render /health
+        run: |
+          url="https://political-analyst-api.onrender.com/health"
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 "$url" || echo 000)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "health check did not return 200 after retries"
+          exit 1
