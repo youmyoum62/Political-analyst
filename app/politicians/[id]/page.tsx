@@ -137,7 +137,7 @@ export async function generateMetadata(
     description,
     alternates: { canonical: `/politicians/${id}` },
     openGraph: { title, description, type: 'profile' },
-    twitter: { card: 'summary', title, description },
+    twitter: { card: 'summary_large_image', title, description },
   };
 }
 

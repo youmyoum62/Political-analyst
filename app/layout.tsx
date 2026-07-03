@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     locale: 'ja_JP',
     type: 'website',
   },
-  twitter: { card: 'summary', title: SITE_NAME, description: SITE_DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: SITE_NAME, description: SITE_DESCRIPTION },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
