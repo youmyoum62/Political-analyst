@@ -3,9 +3,10 @@ import type { MetadataRoute } from 'next';
 import { fetchRankingSafe } from '@/lib/api-client';
 import { SITE_URL } from '@/lib/site';
 
-// sitemap は1時間ごとに再生成（議員の増減を反映）。API 不達でも空の議員一覧で
-// 固定ページ分は必ず出力する（fetchRankingSafe が空配列を返す）。
-export const revalidate = 3600;
+// sitemap は5分ごとに再生成。API 不達でも固定ページ分は必ず出力し（fetchRankingSafe が
+// 空配列を返す）、コールドスタート中にビルドされ議員URLが欠けても、次の再生成
+// （ランタイム120秒タイムアウトでコールドスタートを吸収）で全議員分に速やかに回復する。
+export const revalidate = 300;
 
 const STATIC_ROUTES: { path: string; priority: number }[] = [
   { path: '', priority: 1 },

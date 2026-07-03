@@ -123,7 +123,7 @@ export async function fetchRankingSafe(): Promise<Politician[]> {
   try {
     const res = await fetch(`${API_BASE}/v1/ranking`, {
       signal: AbortSignal.timeout(timeoutMs),
-      next: { revalidate: 3600 },
+      next: { revalidate: 300 },
     });
     if (!res.ok) return [];
     const data = await res.json();
