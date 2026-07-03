@@ -7,6 +7,8 @@
 
 import Link from 'next/link';
 
+import { SITE_DONATE_URL } from '@/lib/site';
+
 const NAV_LINKS: { href: string; label: string }[] = [
   { href: '/about', label: 'このサイトについて' },
   { href: '/methodology', label: '評価方法' },
@@ -60,6 +62,16 @@ export function SiteFooter() {
             {l.label}
           </Link>
         ))}
+        {SITE_DONATE_URL && (
+          <a
+            href={SITE_DONATE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-accent hover:underline"
+          >
+            運営を支援する
+          </a>
+        )}
       </nav>
       <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted">
         データ出典

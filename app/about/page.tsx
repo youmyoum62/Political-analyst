@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { ContentPage, ContentSection } from '@/components/ContentPage';
-import { CONTENT_UPDATED, SITE_CONTACT_EMAIL, SITE_NAME, SITE_OPERATOR } from '@/lib/site';
+import { CONTENT_UPDATED, SITE_CONTACT_EMAIL, SITE_DONATE_URL, SITE_NAME, SITE_OPERATOR } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'このサイトについて',
@@ -82,6 +82,20 @@ export default function AboutPage() {
           </p>
         ) : (
           <p>お問い合わせ窓口は準備中です。</p>
+        )}
+        {SITE_DONATE_URL && (
+          <p>
+            当サイトは無償で運営しています。
+            <a
+              href={SITE_DONATE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              運営を支援する
+            </a>
+            （任意）ことができます。ご支援がスコアや掲載順に影響することはありません。
+          </p>
         )}
       </ContentSection>
     </ContentPage>

@@ -15,4 +15,10 @@ export const SITE_DESCRIPTION =
 export const SITE_OPERATOR = '';
 export const SITE_CONTACT_EMAIL = '';
 
+// 寄付導線。
+// TODO(運営者): OFUSE / Ko-fi 等でアカウントを作成し、その公開URLをここに設定すると
+// フッターと /about に「運営を支援する」リンクが表示される。未設定時は非表示。
+// スコア表示領域には出さない（中立性の見た目を守るため）。
+export const SITE_DONATE_URL = '';
+
 export const CONTENT_UPDATED = '2026年7月3日';
