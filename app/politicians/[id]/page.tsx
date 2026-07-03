@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { RadarChart } from '@/components/RadarChart';
+import { RadarChartLazy } from '@/components/RadarChartLazy';
 import { ScoreAxisLegend } from '@/components/ScoreAxisLegend';
-import { ScoreHistoryChart } from '@/components/ScoreHistoryChart';
+import { ScoreHistoryChartLazy } from '@/components/ScoreHistoryChartLazy';
 import { ScoreWeightsCard } from '@/components/ScoreWeightsCard';
 import { ShareCard } from '@/components/ShareCard';
 import {
@@ -245,7 +245,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
       <section className="grid gap-4 lg:grid-cols-2">
         <div>
           <h2 className="mb-2 text-xl font-black">パワーレーダー</h2>
-          <RadarChart metrics={politician.metrics} />
+          <RadarChartLazy metrics={politician.metrics} />
           <p className="mt-2 text-sm text-muted">5つの評価軸を一目で確認。</p>
         </div>
 
@@ -279,7 +279,7 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
       {/* ── スコア推移チャート ── */}
       <section>
         <h2 className="mb-2 text-xl font-black">スコア推移</h2>
-        <ScoreHistoryChart history={history} />
+        <ScoreHistoryChartLazy history={history} />
       </section>
 
       {/* ── シェアセクション ── */}

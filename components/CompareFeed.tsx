@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { RadarChart } from '@/components/RadarChart';
+import { RadarChartLazy } from '@/components/RadarChartLazy';
 import { Politician } from '@/lib/types';
 
 export function CompareFeed({ ranking }: { ranking: Politician[] }) {
@@ -72,7 +72,7 @@ export function CompareFeed({ ranking }: { ranking: Politician[] }) {
             <p className="text-sm text-muted">{person.party}</p>
             <p className="mt-2 text-5xl font-black">{person.score.toFixed(1)}</p>
             <p className="text-xs font-bold uppercase tracking-widest text-muted">暫定値</p>
-            <RadarChart metrics={person.metrics} />
+            <RadarChartLazy metrics={person.metrics} />
             {person.keyAchievement && (
               <p className="mt-3 text-sm text-ink">主な実績: {person.keyAchievement}</p>
             )}
