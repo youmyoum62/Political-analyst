@@ -1,7 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
-import Script from 'next/script';
 import { SiteFooter } from '@/components/SiteFooter';
 import { ADSENSE_PUBLISHER_ID, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 
@@ -27,19 +26,27 @@ export const metadata: Metadata = {
   alternates: {
     types: { 'application/rss+xml': '/feed.xml' },
   },
+  // AdSense の所有権確認用 meta タグ（<head> に確実に出力される）。
+  ...(ADSENSE_PUBLISHER_ID
+    ? { other: { 'google-adsense-account': ADSENSE_PUBLISHER_ID } }
+    : {}),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja" className={notoSansJP.variable}>
-      {ADSENSE_PUBLISHER_ID && (
-        <Script
-          id="adsbygoogle-init"
-          strategy="afterInteractive"
-          crossOrigin="anonymous"
-          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_PUBLISHER_ID}`}
-        />
-      )}
+      <head>
+        {/* AdSense 所有権確認: クローラは <head> 内の生スクリプトを探すため、素の <script> を
+            head に直接置く（next/script の afterInteractive は body 末尾・beforeInteractive は
+            インライン化され、いずれも生HTMLの head にこの形では出ないため確認に失敗する）。 */}
+        {ADSENSE_PUBLISHER_ID && (
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_PUBLISHER_ID}`}
+            crossOrigin="anonymous"
+          />
+        )}
+      </head>
       <body>
         <a
           href="#main-content"
