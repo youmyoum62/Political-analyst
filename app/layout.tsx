@@ -1,8 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
+import Script from 'next/script';
 import { SiteFooter } from '@/components/SiteFooter';
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
+import { ADSENSE_PUBLISHER_ID, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
@@ -31,6 +32,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja" className={notoSansJP.variable}>
+      {ADSENSE_PUBLISHER_ID && (
+        <Script
+          id="adsbygoogle-init"
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_PUBLISHER_ID}`}
+        />
+      )}
       <body>
         <a
           href="#main-content"

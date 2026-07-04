@@ -22,3 +22,7 @@ export const SITE_CONTACT_EMAIL = 'seijiscore.media@outlook.jp';
 export const SITE_DONATE_URL = '';
 
 export const CONTENT_UPDATED = '2026年7月3日';
+
+// Google AdSense のパブリッシャーID（公開情報）。空文字なら広告スクリプト・ads.txt を出さない。
+// 審査通過後に広告ユニットを設置する（配置は記事的コンテンツ周辺から。スコア表示領域には出さない）。
+export const ADSENSE_PUBLISHER_ID = 'ca-pub-3131251806590981';
