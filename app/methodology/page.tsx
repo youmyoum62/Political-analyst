@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 const AXES: { label: string; description: string }[] = [
-  { label: '議会参加', description: '質問数・発言数・委員会出席数など、議会活動への積極性を定量化します。' },
+  { label: '議会参加', description: '国会会議録検索システムに記録された質問・発言件数に基づき、議会活動への積極性を定量化します（出席率については後述の注記を参照）。' },
   { label: '発言品質', description: 'AIが評価した質問・発言の具体性・政策的深度・論拠の質です（評価は順次反映）。' },
   { label: '立法実績', description: '法案の提出数・共同提案数・委員会での審議関与度です。' },
   { label: '政策実現', description: '提出した法案の可決率・成立した法案の影響度です。' },
@@ -43,6 +43,32 @@ export default function MethodologyPage() {
         </p>
       </ContentSection>
 
+      <ContentSection heading="選挙期間中の運用ポリシー">
+        <p>
+          公職選挙法をはじめとする関連法令との抵触を避け、当サイトの中立性を維持するため、
+          選挙の公示・告示日から投開票日までの期間は以下の自主ルールを適用します。これは法解釈を
+          確定的に示すものではなく、係争回避と中立性維持を目的とした当サイト独自の運用方針です。
+        </p>
+        <ul className="space-y-2.5">
+          <li className="flex items-start gap-2.5">
+            <span aria-hidden="true" className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent" />
+            <span>現職議員が当該選挙の候補者である場合、候補者である旨の表示（立候補の予定・見込みを含む）は行いません。</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <span aria-hidden="true" className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent" />
+            <span>「投票の参考に」「投票の判断材料として」など、投票行動を誘導すると読める文言は掲載しません。</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <span aria-hidden="true" className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent" />
+            <span>選挙区・都道府県で議員を絞り込んだ表示には、当サイトが特定の投票行動を推奨するものではない旨の注意書きを併記します。</span>
+          </li>
+        </ul>
+        <p>
+          当サイトのスコアは公開データに基づく議員個人の活動指標であり、特定候補者への投票を
+          呼びかけたり、投票を推奨したりするものではありません。
+        </p>
+      </ContentSection>
+
       <ContentSection heading="5つの評価軸">
         <ul className="space-y-2.5">
           {AXES.map((axis) => (
@@ -56,6 +82,22 @@ export default function MethodologyPage() {
           ))}
         </ul>
         <p>各軸は0〜100点で正規化し、総合スコアは軸ごとのウェイトを掛けた加重平均です。</p>
+      </ContentSection>
+
+      <ContentSection heading="議会参加スコアの代替指標について">
+        <p>
+          議会参加スコアは本来、「出席率（60%）＋質問・発言件数（40%）」という設計で算出する
+          ものです。しかし衆議院・参議院の公式サイトには、議員個人ごとの本会議・委員会出席率を
+          機械可読な形で公開したデータが存在しません（会議録は発言者単位の記録であり、出欠その
+          ものを構造化データとして提供するものではありません）。
+        </p>
+        <p>
+          そのため現時点では出席率を取得できておらず、出席率は暫定的に0として扱われます。結果
+          として、議会参加スコアは実質的に国会会議録検索システムAPIから取得した質問・発言件数
+          （母集団の分布に基づき正規化した値）のみで算出されており、この軸単独での到達可能な
+          上限は満点ではなく40点相当にとどまります。個人別の出席データを機械可読な形で取得できる
+          見込みが立ち次第、出席率指標を反映し本来の設計に近づけます。
+        </p>
       </ContentSection>
 
       <ContentSection heading="役割プロファイル別のウェイト">
