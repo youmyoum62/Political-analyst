@@ -67,3 +67,65 @@ jobs:
           except Exception as e:
               print(f"DB CONNECT FAIL in {time.time()-t0:.1f}s: {e!r}")
           PY
+
+      - name: Score coverage diagnostics (read-only)
+        run: |
+          pip install "psycopg2-binary>=2.9" >/dev/null
+          python3 - <<'PY'
+          import os, psycopg2
+          conn = psycopg2.connect(os.environ["DATABASE_URL"], connect_timeout=15)
+          cur = conn.cursor()
+
+          def q(sql):
+              cur.execute(sql); return cur.fetchall()
+
+          print("=== [1] 法案sponsorが紐づく現職(is_active)議員数 by house ===")
+          for row in q("""
+              SELECT p.house, count(DISTINCT bs.politician_id)
+              FROM bill_sponsors bs JOIN politicians p ON p.id=bs.politician_id
+              WHERE p.is_active=true GROUP BY p.house ORDER BY p.house;
+          """):
+              print("  house=%s distinct_active_sponsors=%s" % row)
+
+          print("=== [1b] sponsor_role別・現職の紐づき議員数 ===")
+          for row in q("""
+              SELECT bs.sponsor_role, count(DISTINCT bs.politician_id)
+              FROM bill_sponsors bs JOIN politicians p ON p.id=bs.politician_id
+              WHERE p.is_active=true GROUP BY bs.sponsor_role ORDER BY bs.sponsor_role;
+          """):
+              print("  role=%s distinct_active=%s" % row)
+
+          print("=== [1c] bills件数 by status / bill_sponsors総数 ===")
+          for row in q("SELECT status, count(*) FROM bills GROUP BY status ORDER BY status;"):
+              print("  bill.status=%s count=%s" % row)
+          print("  bill_sponsors総数:", q("SELECT count(*) FROM bill_sponsors;")[0][0])
+
+          print("=== [2] score_components: snapshot(period/computed_at)別 各軸>0件数の推移 ===")
+          for row in q("""
+              SELECT period_start, period_end, computed_at,
+                     count(*) AS total,
+                     count(*) FILTER (WHERE legislative_score>0) AS leg_gt0,
+                     count(*) FILTER (WHERE policy_impact_score>0) AS pol_gt0,
+                     count(*) FILTER (WHERE influence_score>0) AS inf_gt0
+              FROM score_components
+              GROUP BY period_start, period_end, computed_at
+              ORDER BY computed_at;
+          """):
+              print("  %s..%s @%s total=%s leg>0=%s pol>0=%s inf>0=%s" % row)
+
+          print("=== [3] 最新computed_atのsnapshotのみ（=APIが配信する集合）===")
+          for row in q("""
+              WITH latest AS (
+                SELECT politician_id, max(computed_at) AS mc
+                FROM score_components GROUP BY politician_id
+              )
+              SELECT count(*) AS total,
+                     count(*) FILTER (WHERE sc.legislative_score>0) AS leg_gt0,
+                     count(*) FILTER (WHERE sc.policy_impact_score>0) AS pol_gt0
+              FROM score_components sc
+              JOIN latest l ON l.politician_id=sc.politician_id AND l.mc=sc.computed_at;
+          """):
+              print("  latest-per-politician total=%s leg>0=%s pol>0=%s" % row)
+
+          cur.close(); conn.close()
+          PY
