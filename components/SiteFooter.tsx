@@ -72,6 +72,9 @@ export function SiteFooter() {
             運営を支援する
           </a>
         )}
+        <Link href="/feed.xml" className="font-semibold text-ink hover:text-accent hover:underline">
+          RSS
+        </Link>
       </nav>
       <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted">
         データ出典
