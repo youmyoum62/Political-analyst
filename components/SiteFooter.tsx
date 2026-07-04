@@ -75,6 +75,9 @@ export function SiteFooter() {
         <Link href="/feed.xml" className="font-semibold text-ink hover:text-accent hover:underline">
           RSS
         </Link>
+        <Link href="/export.csv" className="font-semibold text-ink hover:text-accent hover:underline">
+          CSVダウンロード
+        </Link>
       </nav>
       <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.2em] text-muted">
         データ出典
