@@ -26,3 +26,7 @@ export const CONTENT_UPDATED = '2026年7月3日';
 // Google AdSense のパブリッシャーID（公開情報）。空文字なら広告スクリプト・ads.txt を出さない。
 // 審査通過後に広告ユニットを設置する（配置は記事的コンテンツ周辺から。スコア表示領域には出さない）。
 export const ADSENSE_PUBLISHER_ID = 'ca-pub-3131251806590981';
+
+// Google Analytics 4 の測定ID（例: G-XXXXXXX）。Vercel の環境変数 NEXT_PUBLIC_GA_ID で設定する。
+// 未設定（空文字）なら計測タグを出力しない。SEO流入を最優先する戦略の計測基盤。
+export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID ?? '';

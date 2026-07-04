@@ -1,8 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
+import Script from 'next/script';
 import { SiteFooter } from '@/components/SiteFooter';
-import { ADSENSE_PUBLISHER_ID, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
+import { ADSENSE_PUBLISHER_ID, GA_MEASUREMENT_ID, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
@@ -56,6 +57,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <main id="main-content" className="mx-auto min-h-screen max-w-7xl px-6 py-8">{children}</main>
         <SiteFooter />
+        {GA_MEASUREMENT_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${GA_MEASUREMENT_ID}');`}
+            </Script>
+          </>
+        )}
       </body>
     </html>
   );
