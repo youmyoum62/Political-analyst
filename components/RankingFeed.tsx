@@ -35,6 +35,18 @@ export function RankingFeed({
   const [prefecture, setPrefecture] = useState(initialPrefecture);
   const [showInactive, setShowInactive] = useState(false);
 
+  // 全件ページ（limit 未指定）は718名を一括描画すると描画負荷が高いため、段階表示にする。
+  // フィルタ条件が変わったら表示件数を PAGE_SIZE にリセットする（レンダー中に前回値と比較する
+  // React 推奨パターン。useEffect だと一瞬フル件数が見えてから戻るちらつきが出るため避ける）。
+  const PAGE_SIZE = 60;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const filterKey = JSON.stringify({ ageGroup, party, gender, house, query, prefecture, showInactive });
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setVisibleCount(PAGE_SIZE);
+  }
+
   // 都道府県は URL(?pref=) と同期し、絞り込み結果を共有可能にする（全件ページのみ）。
   const changePrefecture = (value: string) => {
     setPrefecture(value);
@@ -63,8 +75,10 @@ export function RankingFeed({
   const activeFiltered = filtered.filter((p) => !p.isInactive);
   const inactiveFiltered = filtered.filter((p) => p.isInactive);
 
-  const displayedActive = isLimited ? activeFiltered.slice(0, limit) : activeFiltered;
+  const displayedActive = isLimited ? activeFiltered.slice(0, limit) : activeFiltered.slice(0, visibleCount);
   const hasMore = isLimited && activeFiltered.length > (limit as number);
+  const remainingCount = activeFiltered.length - visibleCount;
+  const hasMoreToShow = !isLimited && remainingCount > 0;
 
   const hero = activeFiltered[0] ?? sorted.find((p) => !p.isInactive) ?? sorted[0];
 
@@ -174,6 +188,17 @@ export function RankingFeed({
           >
             全{activeFiltered.length}名のランキングを見る →
           </Link>
+        )}
+
+        {hasMoreToShow && (
+          <button
+            type="button"
+            onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+            aria-label={`さらに表示（残り${remainingCount}名）`}
+            className="flex w-full items-center justify-center rounded-2xl border border-line bg-surface p-4 text-sm font-bold text-accent transition hover:border-muted"
+          >
+            さらに表示（残り{remainingCount}名）
+          </button>
         )}
       </section>
 
