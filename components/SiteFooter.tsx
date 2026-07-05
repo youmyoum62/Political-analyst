@@ -12,6 +12,9 @@ import { SITE_DONATE_URL } from '@/lib/site';
 const NAV_LINKS: { href: string; label: string }[] = [
   { href: '/about', label: 'このサイトについて' },
   { href: '/methodology', label: '評価方法' },
+  { href: '/guide', label: '解説・学ぶ' },
+  { href: '/editorial-policy', label: 'データ・編集方針' },
+  { href: '/corrections', label: '訂正・お問い合わせ' },
   { href: '/privacy', label: 'プライバシーポリシー' },
   { href: '/disclaimer', label: '免責事項' },
 ];
