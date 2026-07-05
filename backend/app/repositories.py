@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session, joinedload
 from app.models import (
     Activity,
     Bill,
+    BillSponsor,
+    InfluenceRole,
     IngestionRun,
     LlmEvaluation,
     Party,
@@ -227,3 +229,90 @@ class PoliticianRepository:
         """)
         rows = self.db.execute(sql).fetchall()
         return {row.politician_id: int(row.trend or 0) for row in rows}
+
+    def get_top_speeches(self, politician_id: int, limit: int = 6) -> list[tuple]:
+        """LLM品質評価済みの発言・質問のうち quality_score 上位 limit 件を返す
+        (Activity, LlmEvaluation) のタプルリスト。評価が無い議員は空リスト。"""
+        stmt = (
+            select(Activity, LlmEvaluation)
+            .join(LlmEvaluation, LlmEvaluation.activity_id == Activity.id)
+            .where(
+                Activity.politician_id == politician_id,
+                Activity.activity_type.in_(("question", "speech")),
+                LlmEvaluation.quality_score.isnot(None),
+            )
+            .order_by(LlmEvaluation.quality_score.desc(), Activity.session_date.desc())
+            .limit(limit)
+        )
+        return list(self.db.execute(stmt).all())  # type: ignore[arg-type]
+
+    def get_bill_sponsorships(self, politician_id: int, limit: int = 30) -> list[tuple]:
+        """議員が提出/共同提出/委員会提出した法案を submitted_date 降順で返す
+        (BillSponsor, Bill) のタプルリスト。"""
+        stmt = (
+            select(BillSponsor, Bill)
+            .join(Bill, Bill.id == BillSponsor.bill_id)
+            .where(BillSponsor.politician_id == politician_id)
+            .order_by(nulls_last(Bill.submitted_date.desc()))
+            .limit(limit)
+        )
+        return list(self.db.execute(stmt).all())  # type: ignore[arg-type]
+
+    def get_influence_roles(self, politician_id: int) -> list[InfluenceRole]:
+        """役職履歴を開始日降順（未設定は最後）で返す。"""
+        stmt = (
+            select(InfluenceRole)
+            .where(InfluenceRole.politician_id == politician_id)
+            .order_by(nulls_last(InfluenceRole.start_date.desc()))
+        )
+        return list(self.db.scalars(stmt).all())
+
+
+class BillRepository:
+    """法案一覧・詳細（bills / bill_sponsors）読み取り専用リポジトリ。"""
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def list_bills(
+        self, limit: int = 50, offset: int = 0, status: str | None = None
+    ) -> list[tuple]:
+        """法案一覧を submitted_date 降順で返す (Bill, sponsor_count) のタプルリスト。
+        sponsor_count は集計サブクエリで一括取得しN+1を回避する。"""
+        sponsor_count_sq = (
+            select(
+                BillSponsor.bill_id.label("bill_id"),
+                func.count().label("cnt"),
+            )
+            .group_by(BillSponsor.bill_id)
+            .subquery()
+        )
+        stmt = select(Bill, func.coalesce(sponsor_count_sq.c.cnt, 0)).outerjoin(
+            sponsor_count_sq, sponsor_count_sq.c.bill_id == Bill.id
+        )
+        if status is not None:
+            stmt = stmt.where(Bill.status == status)
+        stmt = (
+            stmt.order_by(nulls_last(Bill.submitted_date.desc()), Bill.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(self.db.execute(stmt).all())  # type: ignore[arg-type]
+
+    def count_bills(self, status: str | None = None) -> int:
+        stmt = select(func.count()).select_from(Bill)
+        if status is not None:
+            stmt = stmt.where(Bill.status == status)
+        return self.db.scalar(stmt) or 0
+
+    def get_bill_by_code(self, bill_code: str) -> Bill | None:
+        return self.db.scalar(select(Bill).where(Bill.bill_code == bill_code))
+
+    def get_bill_sponsors(self, bill_id: int) -> list[tuple]:
+        """法案の提出者一覧を (BillSponsor, Politician) のタプルリストで返す。"""
+        stmt = (
+            select(BillSponsor, Politician)
+            .join(Politician, Politician.id == BillSponsor.politician_id)
+            .where(BillSponsor.bill_id == bill_id)
+        )
+        return list(self.db.execute(stmt).all())  # type: ignore[arg-type]

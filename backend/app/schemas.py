@@ -28,6 +28,36 @@ class PoliticianListItem(BaseModel):
     role_profile: str
 
 
+class TopSpeechItem(BaseModel):
+    """発言・答弁の抜粋＋LLM品質評価（議員詳細ページの一次情報用）。"""
+    activity_id: int
+    activity_type: str
+    session_date: str
+    excerpt: str
+    score: float
+    confidence: Optional[float] = None
+    rationale: Optional[str] = None
+    source_url: str
+
+
+class PoliticianBillItem(BaseModel):
+    """議員が提出/共同提出/委員会提出した法案（bill_sponsors 経由）。"""
+    bill_id: int
+    bill_code: str
+    title: str
+    role: str
+    status: str
+    submitted_date: Optional[str] = None
+
+
+class PoliticianRoleItem(BaseModel):
+    """役職履歴（influence_roles）。"""
+    role_scope: str
+    role_name: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 class PoliticianDetail(BaseModel):
     id: int
     name: str
@@ -49,6 +79,9 @@ class PoliticianDetail(BaseModel):
     policy_impact_score: float
     influence_score: float
     final_score: float
+    top_speeches: list[TopSpeechItem] = []
+    bills: list[PoliticianBillItem] = []
+    roles: list[PoliticianRoleItem] = []
 
 
 class RankingItem(BaseModel):
@@ -208,6 +241,32 @@ class PartyDetail(BaseModel):
     representatives: int
     councillors: int
     members: list[PartyMember]
+
+
+class BillListItem(BaseModel):
+    id: int
+    bill_code: str
+    title: str
+    status: str
+    submitted_date: Optional[str] = None
+    sponsor_count: int
+
+
+class BillSponsorItem(BaseModel):
+    politician_id: int
+    name: str
+    role: str
+
+
+class BillDetail(BaseModel):
+    id: int
+    bill_code: str
+    title: str
+    status: str
+    submitted_date: Optional[str] = None
+    passed_date: Optional[str] = None
+    source_url: Optional[str] = None
+    sponsors: list[BillSponsorItem]
 
 
 class ORMModel(BaseModel):

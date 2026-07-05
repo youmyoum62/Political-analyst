@@ -15,10 +15,17 @@ from sqlalchemy.orm import Session
 from app.database import Base, SessionLocal, engine, get_db
 from app.logging_config import configure_logging
 from app.middleware import RequestLoggingMiddleware
-from app.repositories import AdminRepository, DigestRepository, PoliticianRepository
+from app.repositories import (
+    AdminRepository,
+    BillRepository,
+    DigestRepository,
+    PoliticianRepository,
+)
 from app.schemas import (
     ActivityItem,
     AnalysisDetail,
+    BillDetail,
+    BillListItem,
     DigestBill,
     DigestMinutesDay,
     DigestResponse,
@@ -39,7 +46,7 @@ from app.schemas import (
     SnapshotTriggerResponse,
 )
 from app.seed import seed_if_empty
-from app.services import PoliticianService
+from app.services import BillService, PoliticianService
 
 configure_logging()
 log = logging.getLogger(__name__)
@@ -395,6 +402,38 @@ def party_detail(request: Request, name: str, db: Session = Depends(get_db)) -> 
         councillors=sum(1 for p, _s in members if p.house == "councillors"),
         members=member_items,
     )
+
+
+@v1.get("/bills", response_model=PaginatedResponse[BillListItem])
+@limiter.limit("60/minute")
+def list_bills(
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    status: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[BillListItem]:
+    service = BillService(BillRepository(db))
+    items, total = service.list_bills(limit=limit, offset=offset, status=status)
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_next=offset + limit < total,
+    )
+
+
+@v1.get("/bills/{bill_code}", response_model=BillDetail)
+@limiter.limit("60/minute")
+def bill_detail(
+    request: Request, bill_code: str, db: Session = Depends(get_db)
+) -> BillDetail:
+    service = BillService(BillRepository(db))
+    data = service.bill_detail(bill_code)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Bill not found")
+    return data
 
 
 @v1.get("/analysis/{politician_id}", response_model=AnalysisDetail)
