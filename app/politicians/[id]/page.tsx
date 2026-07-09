@@ -6,6 +6,7 @@ import { CareerRoles } from '@/components/CareerRoles';
 import { LegislativeActivity } from '@/components/LegislativeActivity';
 import { RadarChartLazy } from '@/components/RadarChartLazy';
 import { ScoreAxisLegend } from '@/components/ScoreAxisLegend';
+import { ScoreBasis } from '@/components/ScoreBasis';
 import { ScoreHistoryChartLazy } from '@/components/ScoreHistoryChartLazy';
 import { ScoreWeightsCard } from '@/components/ScoreWeightsCard';
 import { ShareCard } from '@/components/ShareCard';
@@ -174,14 +175,41 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
   const summaryText = detail.summary || generateSummary(detail);
 
   const canonical = `${SITE_URL}/politicians/${politicianId}`;
+  const personId = `${canonical}#person`;
   const houseLabel = HOUSE_LABELS[detail.house] ?? detail.house;
+
+  // A5: 実データがあるときだけ構造化データを足す（空データの議員では追加しない = 捏造防止）。
+  // 提出法案は Legislation として、その議員を提出者(sponsor)に紐付ける。控えめに上限10件。
+  const billNodes = (detail.bills ?? []).slice(0, 10).map((bill) => ({
+    '@type': 'Legislation',
+    name: bill.title,
+    legislationIdentifier: bill.bill_code,
+    url: `${SITE_URL}/bills/${encodeURIComponent(bill.bill_code)}`,
+    ...(bill.submitted_date ? { dateCreated: bill.submitted_date } : {}),
+    sponsor: { '@id': personId },
+  }));
+
+  // 注目発言は Quotation として、出典URL・発言者(creator)つきで。抜粋と出典がある分のみ。
+  const quotationNodes = (detail.top_speeches ?? [])
+    .filter((sp) => sp.excerpt?.trim() && sp.source_url)
+    .slice(0, 6)
+    .map((sp) => ({
+      '@type': 'Quotation',
+      text: sp.excerpt.trim(),
+      creator: { '@id': personId },
+      ...(sp.session_date ? { dateCreated: sp.session_date } : {}),
+      citation: sp.source_url,
+    }));
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
       {
         '@type': 'Person',
+        '@id': personId,
         name: detail.name,
         jobTitle: '国会議員',
+        hasOccupation: { '@type': 'Occupation', name: '国会議員' },
         affiliation: { '@type': 'Organization', name: detail.party },
         memberOf: { '@type': 'Organization', name: houseLabel },
         url: canonical,
@@ -194,6 +222,8 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
           { '@type': 'ListItem', position: 3, name: detail.name, item: canonical },
         ],
       },
+      ...billNodes,
+      ...quotationNodes,
     ],
   };
 
@@ -279,6 +309,20 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
       <SpeechHighlights speeches={detail.top_speeches ?? []} />
       <LegislativeActivity bills={detail.bills ?? []} />
       <CareerRoles roles={detail.roles ?? []} />
+
+      {/* ── スコアの根拠（この議員の実カウント）：裏付けデータがある軸のみ表示 ── */}
+      <ScoreBasis
+        input={{
+          participation_score: detail.participation_score,
+          quality_score: detail.quality_score,
+          legislative_score: detail.legislative_score,
+          policy_impact_score: detail.policy_impact_score,
+          influence_score: detail.influence_score,
+          bills: detail.bills,
+          roles: detail.roles,
+          top_speeches: detail.top_speeches,
+        }}
+      />
 
       {/* ── スコア内訳カード（analysisがある場合のみ表示） ── */}
       {analysis && <ScoreWeightsCard analysis={analysis} />}
