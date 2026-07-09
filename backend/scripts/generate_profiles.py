@@ -14,6 +14,7 @@ LLM プロフィール生成スクリプト
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import sys
@@ -26,6 +27,7 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.database import SessionLocal, engine
+from app.llm.provider import AnthropicProvider, OpenAIProvider
 from app.models import Activity, Base, LlmEvaluation, Party, Politician, ScoreComponent
 
 # ─────────────────────────────────────────────
@@ -40,25 +42,13 @@ OPENAI_MODEL = "gpt-4o-mini"
 
 
 def _call_llm_anthropic(prompt: str) -> str:
-    import anthropic
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    message = client.messages.create(
-        model=ANTHROPIC_MODEL,
-        max_tokens=512,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return message.content[0].text
+    provider = AnthropicProvider(api_key=ANTHROPIC_API_KEY)
+    return asyncio.run(provider.complete(user=prompt, model=ANTHROPIC_MODEL, max_tokens=512))
 
 
 def _call_llm_openai(prompt: str) -> str:
-    import openai
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)
-    response = client.chat.completions.create(
-        model=OPENAI_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=512,
-    )
-    return response.choices[0].message.content or ""
+    provider = OpenAIProvider(api_key=OPENAI_API_KEY)
+    return asyncio.run(provider.complete(user=prompt, model=OPENAI_MODEL, max_tokens=512))
 
 
 def _call_llm_stub(name: str) -> dict:

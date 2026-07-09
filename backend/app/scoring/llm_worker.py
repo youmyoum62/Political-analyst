@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from app.llm.provider import OpenAIProvider
 from app.models import Activity, LlmEvaluation
 from app.scoring.prompts import PROMPT_VERSION, build_quality_prompt
 
@@ -49,22 +50,24 @@ async def _call_llm(messages: list[dict]) -> dict:
         raise RuntimeError("OPENAI_API_KEY not set")
 
     try:
-        import openai
+        import openai  # noqa: F401  # 未導入時に ImportError を検出するための存在確認
     except ImportError as exc:
         raise RuntimeError("openai package not installed") from exc
 
-    client = openai.AsyncOpenAI(api_key=api_key)
     model = os.getenv("LLM_MODEL", "gpt-4o-mini")
+    system = next((m["content"] for m in messages if m["role"] == "system"), None)
+    user = next(m["content"] for m in messages if m["role"] == "user")
 
-    resp = await client.chat.completions.create(  # type: ignore[call-overload]
+    provider = OpenAIProvider(api_key=api_key)
+    raw = await provider.complete(
+        user=user,
+        system=system,
         model=model,
-        messages=messages,
         temperature=0.1,
         max_tokens=256,
-        response_format={"type": "json_object"},
+        json_mode=True,
     )
-    raw = resp.choices[0].message.content or "{}"
-    return json.loads(raw)
+    return json.loads(raw or "{}")
 
 
 async def _evaluate_one(activity: Activity) -> dict:
