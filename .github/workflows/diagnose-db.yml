@@ -122,6 +122,16 @@ jobs:
               print("  bill.status=%s count=%s" % row)
           print("  bill_sponsors総数:", q("SELECT count(*) FROM bill_sponsors;")[0][0])
 
+          print("=== [1f] llm_evaluations 実在確認（top_speeches が本番で0件の原因裏取り）===")
+          for row in q("""
+              SELECT count(*) AS total,
+                     count(*) FILTER (WHERE quality_score IS NOT NULL) AS with_score,
+                     count(DISTINCT a.politician_id) AS distinct_pols
+              FROM llm_evaluations e
+              LEFT JOIN activities a ON a.id = e.activity_id;
+          """):
+              print("  total=%s with_quality_score=%s distinct_politicians=%s" % row)
+
           print("=== [2a] score_components 全体サマリ ===")
           for row in q("""
               SELECT count(*) AS total_rows,
