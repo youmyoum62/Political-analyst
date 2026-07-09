@@ -57,15 +57,6 @@ export function BillsFeed({ bills }: { bills: BillListItem[] }) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-line bg-surface p-6 sm:p-8">
-        <p className="text-xs uppercase tracking-[0.3em] text-accent">国会議案データベース</p>
-        <h1 className="mt-2 text-3xl font-black leading-tight sm:text-5xl">法案・議案</h1>
-        <p className="mt-3 max-w-2xl text-sm text-muted sm:text-base">
-          国会に提出された法案の一覧です。ステータスで絞り込み、提出者から議員ページへたどれます。
-          データは衆議院・参議院の公式「議案情報」に由来します。
-        </p>
-      </section>
-
       <section className="space-y-3">
         <div
           role="group"

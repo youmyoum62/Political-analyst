@@ -4,18 +4,23 @@ import { render, screen } from '@testing-library/react';
 vi.mock('@/lib/api-client', () => ({
   fetchBills: vi.fn(),
   fetchBill: vi.fn(),
+  fetchDigest: vi.fn(),
 }));
 
-import { fetchBills, fetchBill } from '@/lib/api-client';
+import { fetchBills, fetchBill, fetchDigest } from '@/lib/api-client';
 import BillsPage from '@/app/bills/page';
 import BillDetailPage, { generateMetadata } from '@/app/bills/[code]/page';
 
 const mockedList = vi.mocked(fetchBills);
 const mockedDetail = vi.mocked(fetchBill);
+const mockedDigest = vi.mocked(fetchDigest);
 
 beforeEach(() => {
   mockedList.mockReset();
   mockedDetail.mockReset();
+  mockedDigest.mockReset();
+  // 一覧ページは digest も並行取得する。既定は補助データ無し（null）とする。
+  mockedDigest.mockResolvedValue(null);
 });
 
 describe('法案一覧ページ', () => {

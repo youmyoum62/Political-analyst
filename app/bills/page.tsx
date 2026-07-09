@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 
+import { BillsDashboard } from '@/components/BillsDashboard';
 import { BillsFeed } from '@/components/BillsFeed';
-import { fetchBills, type BillListItem } from '@/lib/api-client';
+import { fetchBills, fetchDigest, type BillListItem } from '@/lib/api-client';
 
 // force-dynamic を維持（ranking/parties と同理由: Render コールドスタート中の
 // ビルド時 prerender 失敗を避け、都度 fetch で全件を返す。keep-warm 稼働中）。
@@ -30,6 +31,22 @@ async function fetchAllBills(): Promise<BillListItem[]> {
 }
 
 export default async function BillsPage() {
-  const bills = await fetchAllBills();
-  return <BillsFeed bills={bills} />;
+  // 全法案（サマリ・一覧の両方で使う）と国会の動き（digest）を並行取得。
+  // digest は補助データのため、失敗しても fetchDigest が null を返し一覧は止めない。
+  const [bills, digest] = await Promise.all([fetchAllBills(), fetchDigest()]);
+  return (
+    <div className="space-y-6">
+      {/* ページ見出し（h1）はサーバ側に置き、DOM 順を h1 → サマリ(h2) → 一覧 に保つ。 */}
+      <section className="rounded-3xl border border-line bg-surface p-6 sm:p-8">
+        <p className="text-xs uppercase tracking-[0.3em] text-accent">国会議案データベース</p>
+        <h1 className="mt-2 text-3xl font-black leading-tight sm:text-5xl">法案・議案</h1>
+        <p className="mt-3 max-w-2xl text-sm text-muted sm:text-base">
+          国会に提出された法案の一覧です。ステータスで絞り込み、提出者から議員ページへたどれます。
+          データは衆議院・参議院の公式「議案情報」に由来します。
+        </p>
+      </section>
+      <BillsDashboard bills={bills} digest={digest} />
+      <BillsFeed bills={bills} />
+    </div>
+  );
 }
