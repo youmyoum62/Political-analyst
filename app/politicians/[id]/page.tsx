@@ -2,11 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { CareerRoles } from '@/components/CareerRoles';
+import { LegislativeActivity } from '@/components/LegislativeActivity';
 import { RadarChartLazy } from '@/components/RadarChartLazy';
 import { ScoreAxisLegend } from '@/components/ScoreAxisLegend';
 import { ScoreHistoryChartLazy } from '@/components/ScoreHistoryChartLazy';
 import { ScoreWeightsCard } from '@/components/ScoreWeightsCard';
 import { ShareCard } from '@/components/ShareCard';
+import { SpeechHighlights } from '@/components/SpeechHighlights';
 import {
   ApiActivityItem,
   ApiPoliticianDetail,
@@ -271,6 +274,11 @@ export default async function PoliticianPage({ params }: { params: Promise<{ id:
           </div>
         </div>
       </section>
+
+      {/* ── 活動ドシエ（一次情報＋AI論評）：データがある場合のみ各セクション表示 ── */}
+      <SpeechHighlights speeches={detail.top_speeches ?? []} />
+      <LegislativeActivity bills={detail.bills ?? []} />
+      <CareerRoles roles={detail.roles ?? []} />
 
       {/* ── スコア内訳カード（analysisがある場合のみ表示） ── */}
       {analysis && <ScoreWeightsCard analysis={analysis} />}
