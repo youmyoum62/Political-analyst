@@ -8,7 +8,9 @@
 - snapshot._count_crossparty_passed: 3党以上の成立法案カウント
 """
 
-from datetime import date
+from datetime import date, datetime
+
+import pytest
 
 from app.ingest import ndl_client as nc
 from app.ingest.filters import is_person_name, is_procedural_speech
@@ -249,6 +251,60 @@ def test_deactivate_former_members(tmp_path):
     finally:
         db.close()
         engine.dispose()
+
+
+# ── スコア計算期間の分離（取得ウィンドウと独立） ─────────────────────────────
+
+def test_default_score_since_is_2024():
+    from scripts.ingest import DEFAULT_SCORE_SINCE
+
+    assert DEFAULT_SCORE_SINCE == "2024-01-01"
+
+
+def test_resolve_score_period_defaults_to_2024_and_run_date():
+    from scripts.ingest import DEFAULT_SCORE_SINCE, _resolve_score_period
+
+    start, end = _resolve_score_period(DEFAULT_SCORE_SINCE, datetime(2026, 7, 9, 3, 0, 0))
+    assert start == date(2024, 1, 1)
+    assert end == date(2026, 7, 9)  # period_end は常に実行日
+
+
+def test_resolve_score_period_independent_of_days_window():
+    """--days が短くてもスコア期間の開始は --score-since 起点で変わらない（夜間上書き回帰）。"""
+    from scripts.ingest import DEFAULT_SCORE_SINCE, _resolve_score_period
+
+    # days=90 のローリング開始日(≈2026-04-10)ではなく、既定の2024-01-01が採用される
+    start, _ = _resolve_score_period(DEFAULT_SCORE_SINCE, datetime(2026, 7, 9))
+    assert start == date(2024, 1, 1)
+
+
+def test_resolve_score_period_explicit_override():
+    from scripts.ingest import _resolve_score_period
+
+    start, end = _resolve_score_period("2026-04-10", datetime(2026, 7, 9))
+    assert start == date(2026, 4, 10)
+    assert end == date(2026, 7, 9)
+
+
+def test_resolve_score_period_rejects_future_start():
+    from scripts.ingest import _resolve_score_period
+
+    with pytest.raises(ValueError):
+        _resolve_score_period("2027-01-01", datetime(2026, 7, 9))
+
+
+def test_parser_defaults_and_score_since_override():
+    from scripts.ingest import DEFAULT_SCORE_SINCE, _build_parser
+
+    parser = _build_parser()
+    args = parser.parse_args([])
+    assert args.days == 90
+    assert args.score_since == DEFAULT_SCORE_SINCE
+    assert args.rescore_only is False
+
+    args2 = parser.parse_args(["--score-since", "2025-01-01", "--days", "30"])
+    assert args2.score_since == "2025-01-01"
+    assert args2.days == 30  # 取得ウィンドウは独立して指定できる
 
 
 # ── snapshot crossparty ──────────────────────────────────────────────────

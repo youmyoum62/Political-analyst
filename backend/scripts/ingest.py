@@ -14,6 +14,11 @@
   python -m scripts.ingest --limit 30        # 先頭30名（テスト用）
   python -m scripts.ingest --dry-run         # 保存せずプレビュー
   python -m scripts.ingest --rescore-only    # 取込スキップ、スコア再計算のみ
+  python -m scripts.ingest --score-since 2026-04-10  # スコア期間の開始日を上書き
+
+注意: 会議録の取得ウィンドウ（--days）とスコア計算期間（--score-since 起点）は
+独立している。--days はローリングでも、スコア期間の開始は既定 2024-01-01 に固定され、
+夜間 cron のローリング期間でカバレッジが上書きされ狭まるのを防ぐ。
 """
 
 from __future__ import annotations
@@ -79,6 +84,11 @@ PARTY_MAP: dict[str, str] = {
 }
 
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+
+# スコア計算期間の既定開始日。⑦カバレッジ是正で確定した製品判断の期間。
+# 会議録の取得ウィンドウ（--days）とは独立させ、夜間 cron のローリング期間で
+# スコアが上書きされ狭まるのを防ぐ（--score-since で明示上書き可能）。
+DEFAULT_SCORE_SINCE = "2024-01-01"
 
 
 # ─────────────────────────────────────────────
@@ -501,9 +511,12 @@ def _upsert_activities(
 # メイン
 # ─────────────────────────────────────────────
 
-def main() -> None:
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="国会議員データ取込スクリプト v3")
-    parser.add_argument("--days", type=int, default=90, help="過去日数（デフォルト: 90）")
+    parser.add_argument(
+        "--days", type=int, default=90,
+        help="会議録の取得ウィンドウ日数（デフォルト: 90）。スコア計算期間には影響しない。",
+    )
     parser.add_argument("--limit", type=int, default=0, help="取込上限（0=無制限）")
     parser.add_argument("--dry-run", action="store_true", help="DBに保存せずプレビュー")
     parser.add_argument("--rescore-only", action="store_true", help="取込スキップ、スコア再計算のみ")
@@ -513,6 +526,37 @@ def main() -> None:
     )
     parser.add_argument("--skip-llm", action="store_true", help="LLM評価ステップをスキップ")
     parser.add_argument("--skip-snapshot", action="store_true", help="スコア再計算をスキップ")
+    parser.add_argument(
+        "--score-since", type=str, default=DEFAULT_SCORE_SINCE,
+        help=(
+            f"スコア計算期間の開始日 (ISO, 例 {DEFAULT_SCORE_SINCE})。"
+            f"デフォルト {DEFAULT_SCORE_SINCE}（⑦カバレッジ是正で確定した製品判断の期間）。"
+            "period_end は常に実行日。会議録の取得ウィンドウ(--days)とは独立しており、"
+            "夜間 cron のローリング期間でスコアが上書きされ狭まるのを防ぐ。"
+            "ローリング期間に戻したい場合のみ明示指定する。"
+        ),
+    )
+    return parser
+
+
+def _resolve_score_period(score_since: str, until_dt: datetime) -> tuple[date, date]:
+    """スコア計算期間 (period_start, period_end) を決める。
+
+    period_start は --score-since（ISO日付）。period_end は実行日（until_dt）。
+    会議録の取得ウィンドウ(--days)とは独立させ、夜間 cron のローリング期間が
+    スコアの集計期間を毎晩狭めて上書きするのを防ぐ。
+    """
+    period_start = date.fromisoformat(score_since)
+    period_end = until_dt.date()
+    if period_end < period_start:
+        raise ValueError(
+            f"--score-since ({period_start}) は実行日 ({period_end}) 以前である必要があります"
+        )
+    return period_start, period_end
+
+
+def main() -> None:
+    parser = _build_parser()
     args = parser.parse_args()
 
     use_llm = bool(os.getenv("OPENAI_API_KEY")) and not args.skip_llm
@@ -521,12 +565,15 @@ def main() -> None:
     since_dt = until_dt - timedelta(days=args.days)
     from_date = since_dt.strftime("%Y-%m-%d")
     until_date = until_dt.strftime("%Y-%m-%d")
-    period_start = since_dt.date()
-    period_end = until_dt.date()
+    try:
+        period_start, period_end = _resolve_score_period(args.score_since, until_dt)
+    except ValueError as e:
+        parser.error(str(e))
 
     print("=" * 60)
     print("国会議員データ取込スクリプト v3")
-    print(f"  期間: {from_date} 〜 {until_date}")
+    print(f"  取得ウィンドウ: {from_date} 〜 {until_date}（--days {args.days}）")
+    print(f"  スコア期間: {period_start} 〜 {period_end}")
     print(f"  LLM評価: {'有効 (' + LLM_MODEL + ')' if use_llm else '無効'}")
     print(f"  実行モード: {'DRY RUN' if args.dry_run else '本番'}")
     print("=" * 60)

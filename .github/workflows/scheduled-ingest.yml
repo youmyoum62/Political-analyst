@@ -29,6 +29,9 @@ on:
         description: "名簿の更新と過去議員の無効化のみ（発言取得をスキップ・高速）"
         type: boolean
         default: false
+      score_since:
+        description: "スコア計算期間の開始日 (ISO, 例 2024-01-01)。空ならスクリプト既定(2024-01-01)を使用"
+        default: ""
 
 # 同時実行を抑止（重複インジェストを防ぐ）
 concurrency:
@@ -78,6 +81,10 @@ jobs:
           INGEST_DAYS: ${{ github.event.inputs.days || '90' }}
           INGEST_LIMIT: ${{ github.event.inputs.limit || '0' }}
           ROSTER_ONLY: ${{ github.event.inputs.roster_only }}
+          # 空のときはスクリプト既定(DEFAULT_SCORE_SINCE=2024-01-01)に委譲する。
+          # 取得ウィンドウ(--days)はローリングでも、スコア期間の開始は固定して
+          # 夜間 cron のローリング期間でカバレッジが上書きされ狭まるのを防ぐ。
+          SCORE_SINCE: ${{ github.event.inputs.score_since }}
         run: |
           set -euo pipefail
           if [ "${ROSTER_ONLY}" = "true" ]; then
@@ -89,8 +96,12 @@ jobs:
             else
               echo "LLM 品質評価: 無効（OPENAI_API_KEY 未設定）"
             fi
-            echo "会議録インジェスト開始: days=${INGEST_DAYS} limit=${INGEST_LIMIT}"
-            python -m scripts.ingest --days "${INGEST_DAYS}" --limit "${INGEST_LIMIT}"
+            SCORE_ARG=""
+            if [ -n "${SCORE_SINCE:-}" ]; then
+              SCORE_ARG="--score-since ${SCORE_SINCE}"
+            fi
+            echo "会議録インジェスト開始: days=${INGEST_DAYS} limit=${INGEST_LIMIT} score_since=${SCORE_SINCE:-（既定2024-01-01）}"
+            python -m scripts.ingest --days "${INGEST_DAYS}" --limit "${INGEST_LIMIT}" ${SCORE_ARG}
           fi
           echo "完了"
 
