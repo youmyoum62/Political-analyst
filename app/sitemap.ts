@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 import { API_BASE, fetchRankingSafe } from '@/lib/api-client';
+import { PREFECTURES } from '@/lib/district';
 import { SITE_URL } from '@/lib/site';
 
 // sitemap はリクエスト毎にランタイム生成する（ビルド時 prerender・ISR キャッシュを使わない）。
@@ -14,6 +15,7 @@ const STATIC_ROUTES: { path: string; priority: number }[] = [
   { path: '/ranking', priority: 0.8 },
   { path: '/bills', priority: 0.7 },
   { path: '/parties', priority: 0.7 },
+  { path: '/area', priority: 0.6 },
   { path: '/insights', priority: 0.6 },
   { path: '/insights/legislative-activity', priority: 0.6 },
   { path: '/insights/party-score-distribution', priority: 0.6 },
@@ -74,5 +76,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticEntries, ...politicianEntries, ...billEntries];
+  // 47都道府県の地域ページ。API 非依存の静的リスト（lib/district.ts）から列挙するため
+  // Render の状態に関係なく常に全件出力できる（「◯◯県の国会議員」検索流入の受け皿）。
+  const areaEntries: MetadataRoute.Sitemap = PREFECTURES.map((p) => ({
+    url: `${SITE_URL}/area/${encodeURIComponent(p.value)}`,
+    changeFrequency: 'weekly',
+    priority: 0.5,
+  }));
+
+  return [...staticEntries, ...areaEntries, ...politicianEntries, ...billEntries];
 }

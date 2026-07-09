@@ -57,6 +57,11 @@ export const PREFECTURES: { value: string; label: string }[] = [
 
 const PREFECTURE_SET = new Set(PREFECTURES.map((p) => p.value));
 
+/** value（district 接頭辞と同じ短縮形）から都道府県定義を返す。未知なら undefined。 */
+export function findPrefecture(value: string): { value: string; label: string } | undefined {
+  return PREFECTURES.find((p) => p.value === value);
+}
+
 /**
  * 選挙区文字列から該当する都道府県（短縮形）を返す。
  * 合区は複数返す。比例代表・空・未知は空配列。

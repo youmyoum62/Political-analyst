@@ -12,6 +12,7 @@ import { SITE_DONATE_URL } from '@/lib/site';
 const NAV_LINKS: { href: string; label: string }[] = [
   { href: '/about', label: 'このサイトについて' },
   { href: '/bills', label: '法案・議案' },
+  { href: '/area', label: '地域から探す' },
   { href: '/methodology', label: '評価方法' },
   { href: '/insights', label: 'データで読む' },
   { href: '/guide', label: '解説・学ぶ' },
