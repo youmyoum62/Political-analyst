@@ -154,6 +154,9 @@ export type ApiPoliticianDetail = {
   policy_impact_score: number;
   influence_score: number;
   final_score: number;
+  top_speeches?: TopSpeech[];
+  bills?: PoliticianBill[];
+  roles?: PoliticianRole[];
 };
 
 export function detailToPolitician(d: ApiPoliticianDetail): Politician {
@@ -332,4 +335,96 @@ export async function fetchActivities(
   } catch {
     return [];
   }
+}
+
+
+// --- Wave2: 議員ドシエ(発言/法案/役職) & 法案ページ 用の型とフェッチャ ---
+
+/** 議員詳細の「発言ハイライト」1件。AI評価つきの発言・質問。 */
+export type TopSpeech = {
+  activity_id: number;
+  activity_type: 'question' | 'speech';
+  session_date: string | null;
+  excerpt: string;
+  score: number | null;
+  confidence: number | null;
+  rationale: string | null;
+  source_url: string | null;
+};
+
+/** 議員詳細の「立法活動」1件。提出/共同提出した法案。 */
+export type PoliticianBill = {
+  bill_id: number;
+  bill_code: string;
+  title: string;
+  role: 'primary' | 'co' | 'committee' | string;
+  status: string;
+  submitted_date: string | null;
+};
+
+/** 議員詳細の「役職」1件。 */
+export type PoliticianRole = {
+  role_scope: string;
+  role_name: string;
+  start_date: string | null;
+  end_date: string | null;
+};
+
+/** 法案一覧の1件。 */
+export type BillListItem = {
+  id: number;
+  bill_code: string;
+  title: string;
+  status: string;
+  submitted_date: string | null;
+  sponsor_count: number;
+};
+
+export type BillListResponse = {
+  items: BillListItem[];
+  total: number;
+};
+
+/** 法案詳細。 */
+export type BillSponsorItem = {
+  politician_id: number;
+  name: string;
+  role: 'primary' | 'co' | 'committee' | string;
+};
+
+export type BillDetail = {
+  id: number;
+  bill_code: string;
+  title: string;
+  status: string;
+  submitted_date: string | null;
+  passed_date: string | null;
+  source_url: string | null;
+  sponsors: BillSponsorItem[];
+};
+
+/** 法案一覧。status で絞り込み可。ページング(limit/offset)。 */
+export async function fetchBills(opts?: {
+  status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<BillListResponse> {
+  const params = new URLSearchParams();
+  if (opts?.status) params.set('status', opts.status);
+  if (opts?.limit != null) params.set('limit', String(opts.limit));
+  if (opts?.offset != null) params.set('offset', String(opts.offset));
+  const query = params.toString() ? `?${params}` : '';
+  const data = await fetchJson<BillListResponse>(`/v1/bills${query}`);
+  if (!data || !Array.isArray(data.items)) {
+    throw new Error('API response format error: /v1/bills did not return items[]');
+  }
+  return data;
+}
+
+/** 法案詳細。存在しなければ null。 */
+export async function fetchBill(billCode: string): Promise<BillDetail | null> {
+  const res = await fetchWithRetry(`${API_BASE}/v1/bills/${encodeURIComponent(billCode)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiRequestError(`/v1/bills/${billCode}`, res.status, res.statusText);
+  return res.json();
 }
