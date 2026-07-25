@@ -51,7 +51,7 @@ from app.models import (
     Party,
     Politician,
 )
-from app.scoring.llm_worker import process_pending_evaluations
+from app.scoring.llm_worker import process_pending_evaluations, resolve_model_name
 from app.scoring.prompts import PROMPT_VERSION
 
 # ─────────────────────────────────────────────
@@ -83,7 +83,9 @@ PARTY_MAP: dict[str, str] = {
     "社会民主党・無所属": "社会民主党",
 }
 
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+# LlmEvaluation.model_name に記録するモデル名。実際の呼び出し先と食い違わないよう、
+# ワーカー側の選択ロジック（Anthropic 優先）をそのまま使う。
+LLM_MODEL = resolve_model_name()
 
 # スコア計算期間の既定開始日。⑦カバレッジ是正で確定した製品判断の期間。
 # 会議録の取得ウィンドウ（--days）とは独立させ、夜間 cron のローリング期間で
@@ -559,7 +561,9 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
 
-    use_llm = bool(os.getenv("OPENAI_API_KEY")) and not args.skip_llm
+    use_llm = bool(
+        os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY")
+    ) and not args.skip_llm
 
     until_dt = datetime.now()
     since_dt = until_dt - timedelta(days=args.days)
@@ -704,7 +708,7 @@ def main() -> None:
             processed = process_pending_evaluations(db, batch_size=100)
         print(f"  処理完了: {processed} 件")
     else:
-        print("\n[5/5] LLM評価スキップ（OPENAI_API_KEY 未設定 or --skip-llm）")
+        print("\n[5/5] LLM評価スキップ（ANTHROPIC_API_KEY / OPENAI_API_KEY 未設定 or --skip-llm）")
 
     # Step 6: スコア再計算
     if not args.skip_snapshot:

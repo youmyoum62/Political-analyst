@@ -34,6 +34,7 @@ class LLMProvider(abc.ABC):
         system: str | None = None,
         temperature: float | None = None,
         json_mode: bool = False,
+        effort: str | None = None,
     ) -> str:
         """
         1回の補完を実行し、応答テキストを返す。
@@ -42,6 +43,8 @@ class LLMProvider(abc.ABC):
         - temperature: None なら明示的にパラメータを渡さず、API 既定値に委ねる。
         - json_mode: True なら JSON 応答を強制するオプションを有効にする
           （プロバイダが対応していなければ無視してよい）。
+        - effort: 思考量のヒント（low/medium/high/xhigh/max）。None なら渡さない。
+          対応していないプロバイダ・モデルでは呼び出し元が None にする責任を持つ。
 
         API エラーや設定不備は例外として送出する（リトライ判断は呼び出し元が行う）。
         """
@@ -63,7 +66,10 @@ class OpenAIProvider(LLMProvider):
         system: str | None = None,
         temperature: float | None = None,
         json_mode: bool = False,
+        effort: str | None = None,
     ) -> str:
+        # effort は Anthropic 固有のため無視する。
+        del effort
         import openai
 
         messages: list[dict[str, str]] = []
@@ -97,9 +103,10 @@ class AnthropicProvider(LLMProvider):
         system: str | None = None,
         temperature: float | None = None,
         json_mode: bool = False,
+        effort: str | None = None,
     ) -> str:
         # Anthropic Messages API に OpenAI の response_format 相当の JSON 強制モードは
-        # ないため json_mode は無視する（既存の generate_profiles.py も指定していない）。
+        # ないため json_mode は無視する（呼び出し元がプロンプトと解析側で担保する）。
         del json_mode
         import anthropic
 
@@ -110,9 +117,18 @@ class AnthropicProvider(LLMProvider):
         }
         if system is not None:
             kwargs["system"] = system
+        # temperature は Claude Opus 5 / Opus 4.7 以降では 400 になるため、
+        # 呼び出し元が None を渡した場合は一切送らない。
         if temperature is not None:
             kwargs["temperature"] = temperature
+        if effort is not None:
+            kwargs["output_config"] = {"effort": effort}
 
         client = anthropic.AsyncAnthropic(api_key=self._api_key)
         message = await client.messages.create(**kwargs)
-        return message.content[0].text
+
+        # 思考が有効なモデル（Opus 5 等は既定で ON）では content の先頭に thinking
+        # ブロックが入る。content[0] 決め打ちだと text 属性が無く落ちるため、
+        # text ブロックだけを取り出して連結する。
+        texts = [b.text for b in message.content if getattr(b, "type", None) == "text"]
+        return "".join(texts)

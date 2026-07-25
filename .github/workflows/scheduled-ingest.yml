@@ -9,8 +9,14 @@ name: Scheduled Ingest & Snapshot
 # 本番 DB(Supabase) に直接書き込む方式に変更した（HTTP 非依存・最大 6 時間）。
 #
 # 必要な GitHub Secrets（Settings > Secrets and variables > Actions）:
-#   - DATABASE_URL   : Supabase 接続文字列（postgresql://...）。未設定なら自動スキップ。
-#   - OPENAI_API_KEY : 任意。設定時のみ LLM 品質評価も実行（未設定なら自動スキップ）。
+#   - DATABASE_URL      : Supabase 接続文字列（postgresql://...）。未設定なら自動スキップ。
+#   - ANTHROPIC_API_KEY : LLM 品質評価に必須（優先）。
+#   - OPENAI_API_KEY    : ANTHROPIC_API_KEY 未設定時のフォールバック。
+#
+# LLM のキーがどちらも無いときは警告ではなく **ジョブを失敗させる**。
+# 以前は警告だけ出して評価を無言でスキップし続けた結果、夜間ジョブが success の裏で
+# llm_evaluations が一度も埋まらず、全議員の quality_score が既定値 50 のままになった。
+# 意図的に評価を止めたい場合は workflow_dispatch の skip_llm=true を使う。
 #
 # 注: schedule / workflow_dispatch はデフォルトブランチ(main)のワークフローで起動する。
 
@@ -32,6 +38,10 @@ on:
       score_since:
         description: "スコア計算期間の開始日 (ISO, 例 2024-01-01)。空ならスクリプト既定(2024-01-01)を使用"
         default: ""
+      skip_llm:
+        description: "LLM 品質評価を意図的にスキップする（APIキー未設定によるジョブ失敗も回避）"
+        type: boolean
+        default: false
 
 # 同時実行を抑止（重複インジェストを防ぐ）
 concurrency:
@@ -48,6 +58,7 @@ jobs:
         working-directory: backend
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${DATABASE_URL:-}" ]; then
-            echo "::warning::DATABASE_URL secret が未設定のためスキップしました。Settings > Secrets で DATABASE_URL（任意で OPENAI_API_KEY）を設定してください。"
+            echo "::warning::DATABASE_URL secret が未設定のためスキップしました。Settings > Secrets で DATABASE_URL と ANTHROPIC_API_KEY を設定してください。"
             echo "run=false" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"
@@ -81,6 +92,7 @@ jobs:
           INGEST_DAYS: ${{ github.event.inputs.days || '90' }}
           INGEST_LIMIT: ${{ github.event.inputs.limit || '0' }}
           ROSTER_ONLY: ${{ github.event.inputs.roster_only }}
+          SKIP_LLM: ${{ github.event.inputs.skip_llm }}
           # 空のときはスクリプト既定(DEFAULT_SCORE_SINCE=2024-01-01)に委譲する。
           # 取得ウィンドウ(--days)はローリングでも、スコア期間の開始は固定して
           # 夜間 cron のローリング期間でカバレッジが上書きされ狭まるのを防ぐ。
@@ -91,17 +103,26 @@ jobs:
             echo "名簿のみ更新（roster-only）: 発言取得・LLM・再計算はスキップ"
             python -m scripts.ingest --roster-only
           else
-            if [ -n "${OPENAI_API_KEY:-}" ]; then
-              echo "LLM 品質評価: 有効"
+            # キー未設定を警告で流すと、評価が無言でスキップされたまま success になる。
+            # 意図的に止めるときだけ skip_llm=true を明示させ、それ以外は失敗させる。
+            LLM_ARG=""
+            if [ "${SKIP_LLM}" = "true" ]; then
+              echo "LLM 品質評価: 明示スキップ（skip_llm=true）"
+              LLM_ARG="--skip-llm"
+            elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+              echo "LLM 品質評価: 有効（Anthropic）"
+            elif [ -n "${OPENAI_API_KEY:-}" ]; then
+              echo "LLM 品質評価: 有効（OpenAI）"
             else
-              echo "LLM 品質評価: 無効（OPENAI_API_KEY 未設定）"
+              echo "::error::ANTHROPIC_API_KEY / OPENAI_API_KEY のいずれも未設定です。Settings > Secrets で設定するか、意図的に止める場合は skip_llm=true で実行してください。"
+              exit 1
             fi
             SCORE_ARG=""
             if [ -n "${SCORE_SINCE:-}" ]; then
               SCORE_ARG="--score-since ${SCORE_SINCE}"
             fi
             echo "会議録インジェスト開始: days=${INGEST_DAYS} limit=${INGEST_LIMIT} score_since=${SCORE_SINCE:-（既定2024-01-01）}"
-            python -m scripts.ingest --days "${INGEST_DAYS}" --limit "${INGEST_LIMIT}" ${SCORE_ARG}
+            python -m scripts.ingest --days "${INGEST_DAYS}" --limit "${INGEST_LIMIT}" ${SCORE_ARG} ${LLM_ARG}
           fi
           echo "完了"
 

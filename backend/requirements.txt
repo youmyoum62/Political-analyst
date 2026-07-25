@@ -7,7 +7,8 @@ alembic>=1.13.0
 slowapi>=0.1.9
 pytest==8.3.3
 requests==2.32.3
-anthropic>=0.40.0
+# output_config(effort) を使うため、対応を実測で確認した 0.107.1 を下限にする。
+anthropic>=0.107.1
 beautifulsoup4==4.12.3
 numpy>=1.26.0
 openai>=1.40.0
