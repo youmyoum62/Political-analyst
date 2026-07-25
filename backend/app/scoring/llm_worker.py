@@ -95,7 +95,41 @@ def _effort_for(model: str) -> str | None:
     """採点は短い定型タスクのため低 effort で足りる。非対応モデルには渡さない。"""
     if model.startswith(_NO_EFFORT_PREFIXES):
         return None
-    return os.getenv("LLM_EFFORT", "low")
+    return (os.getenv("LLM_EFFORT") or "").strip() or "low"
+
+
+def _int_env(name: str, default: int) -> int:
+    """整数の環境変数を読む。未設定・空文字・不正値なら既定値を使う。
+
+    GitHub Actions は未入力の workflow_dispatch 入力を空文字で渡してくるため、
+    os.getenv の第2引数だけでは既定値にフォールバックしない。
+    """
+    raw = (os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        log.warning("%s の値が不正なため既定値 %d を使います: %r", name, default, raw)
+        return default
+
+
+def _batch_size() -> int:
+    """1回の実行で処理する queued 件数。LLM_BATCH_SIZE で調整する。
+
+    キューに数千件溜まった状態を数回の実行で消化するために引き上げられるようにした
+    （既定の 100 のままだと全件消化に何十日もかかる）。
+    """
+    return _int_env("LLM_BATCH_SIZE", 100)
+
+
+def _concurrency() -> int:
+    """同時リクエスト数の上限。LLM_CONCURRENCY で調整する。
+
+    batch_size をそのまま同時実行するとレート制限やソケット枯渇を招くため、
+    件数と並列度を分離する。100 並列は実測で問題なかったが、余裕を見て 20 を既定にする。
+    """
+    return _int_env("LLM_CONCURRENCY", 20)
 
 
 def _temperature_for(model: str) -> float | None:
@@ -203,14 +237,17 @@ async def _evaluate_one(activity: Activity) -> dict:
             "rationale": f"評価失敗: {last_err}"}
 
 
-def process_pending_evaluations(db: Session, batch_size: int = 50) -> int:
+def process_pending_evaluations(db: Session, batch_size: int | None = None) -> int:
     """
     status='queued' の LlmEvaluation を batch_size 件処理する（同期ラッパー）。
-    処理件数を返す。
+    処理件数を返す。batch_size 省略時は LLM_BATCH_SIZE 環境変数（既定100）に従う。
 
-    LLMが利用不可（APIキー未設定 / openai 未導入）の場合は何も書き込まず0を返す。
+    LLMが利用不可（APIキー未設定 / SDK 未導入）の場合は何も書き込まず0を返す。
     中立値50を succeeded として保存するサイレント・フォールバックは行わない。
     """
+    if batch_size is None:
+        batch_size = _batch_size()
+
     available, reason = _llm_availability()
     if not available:
         queued = db.query(LlmEvaluation).filter(LlmEvaluation.status == "queued").count()
@@ -247,15 +284,20 @@ def process_pending_evaluations(db: Session, batch_size: int = 50) -> int:
 
 
 async def _evaluate_batch(pairs: list[tuple]) -> list[tuple]:
-    """(LlmEvaluation, Activity | None) のリストを並列評価する。"""
-    tasks = []
-    for evaluation, activity in pairs:
-        if activity is None:
-            tasks.append(_stub_result(evaluation))
-        else:
-            tasks.append(_evaluate_one(activity))
+    """(LlmEvaluation, Activity | None) のリストを並列評価する。
 
-    results_data = await asyncio.gather(*tasks)
+    batch_size をそのまま同時実行するとレート制限に当たるため、
+    セマフォで同時リクエスト数を絞る（件数と並列度を分離する）。
+    """
+    sem = asyncio.Semaphore(_concurrency())
+
+    async def _run(evaluation: LlmEvaluation, activity: Activity | None) -> dict:
+        if activity is None:
+            return await _stub_result(evaluation)
+        async with sem:
+            return await _evaluate_one(activity)
+
+    results_data = await asyncio.gather(*(_run(e, a) for e, a in pairs))
     return list(zip([e for e, _ in pairs], results_data))
 
 

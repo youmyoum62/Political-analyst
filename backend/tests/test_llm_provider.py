@@ -84,7 +84,9 @@ class TestAnthropicProvider:
     def test_default_call_matches_generate_profiles_shape(self):
         async def _run():
             provider = AnthropicProvider(api_key="ak-test")
-            fake_message = MagicMock(content=[MagicMock(text="anthropic応答")])
+            # 実 SDK の TextBlock は type="text" を持つ。type を省いた MagicMock は
+            # 実物と挙動が違うため、必ず付けて実態に合わせる。
+            fake_message = MagicMock(content=[MagicMock(text="anthropic応答", type="text")])
 
             with patch("anthropic.AsyncAnthropic") as mock_client_cls:
                 mock_client = mock_client_cls.return_value
@@ -109,7 +111,7 @@ class TestAnthropicProvider:
     def test_system_and_temperature_are_passed_when_given(self):
         async def _run():
             provider = AnthropicProvider(api_key="ak-test")
-            fake_message = MagicMock(content=[MagicMock(text="ok")])
+            fake_message = MagicMock(content=[MagicMock(text="ok", type="text")])
             with patch("anthropic.AsyncAnthropic") as mock_client_cls:
                 mock_client = mock_client_cls.return_value
                 mock_client.messages.create = AsyncMock(return_value=fake_message)
@@ -119,5 +121,49 @@ class TestAnthropicProvider:
             _, kwargs = mock_client.messages.create.call_args
             assert kwargs["system"] == "s"
             assert kwargs["temperature"] == 0.5
+
+        asyncio.run(_run())
+
+    def test_thinking_block_is_skipped(self):
+        """思考が有効なモデルでは content 先頭に thinking ブロックが入る。
+
+        content[0].text 決め打ちだと本文を取り落とすため、text ブロックだけを拾う。
+        """
+        async def _run():
+            provider = AnthropicProvider(api_key="ak-test")
+            fake_message = MagicMock(
+                content=[
+                    MagicMock(thinking="", type="thinking"),
+                    MagicMock(text="本文です", type="text"),
+                ]
+            )
+            with patch("anthropic.AsyncAnthropic") as mock_client_cls:
+                mock_client = mock_client_cls.return_value
+                mock_client.messages.create = AsyncMock(return_value=fake_message)
+                result = await provider.complete(user="u", model="m", max_tokens=10)
+
+            assert result == "本文です"
+
+        asyncio.run(_run())
+
+    def test_effort_is_passed_only_when_given(self):
+        """effort は output_config として渡す。None のときは一切送らない
+
+        （非対応モデルに渡すと 400 になるため）。
+        """
+        async def _run():
+            provider = AnthropicProvider(api_key="ak-test")
+            fake_message = MagicMock(content=[MagicMock(text="ok", type="text")])
+
+            with patch("anthropic.AsyncAnthropic") as mock_client_cls:
+                mock_client = mock_client_cls.return_value
+                mock_client.messages.create = AsyncMock(return_value=fake_message)
+                await provider.complete(user="u", model="m", max_tokens=10, effort="low")
+                _, kwargs = mock_client.messages.create.call_args
+                assert kwargs["output_config"] == {"effort": "low"}
+
+                await provider.complete(user="u", model="m", max_tokens=10)
+                _, kwargs = mock_client.messages.create.call_args
+                assert "output_config" not in kwargs
 
         asyncio.run(_run())

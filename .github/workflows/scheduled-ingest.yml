@@ -42,6 +42,9 @@ on:
         description: "LLM 品質評価を意図的にスキップする（APIキー未設定によるジョブ失敗も回避）"
         type: boolean
         default: false
+      llm_batch_size:
+        description: "1回の実行で処理する LLM 評価キューの件数（空なら既定100。溜まったキューの消化時に増やす）"
+        default: ""
 
 # 同時実行を抑止（重複インジェストを防ぐ）
 concurrency:
@@ -93,6 +96,8 @@ jobs:
           INGEST_LIMIT: ${{ github.event.inputs.limit || '0' }}
           ROSTER_ONLY: ${{ github.event.inputs.roster_only }}
           SKIP_LLM: ${{ github.event.inputs.skip_llm }}
+          # 空なら llm_worker 側の既定(100)に委ねる。
+          LLM_BATCH_SIZE: ${{ github.event.inputs.llm_batch_size }}
           # 空のときはスクリプト既定(DEFAULT_SCORE_SINCE=2024-01-01)に委譲する。
           # 取得ウィンドウ(--days)はローリングでも、スコア期間の開始は固定して
           # 夜間 cron のローリング期間でカバレッジが上書きされ狭まるのを防ぐ。

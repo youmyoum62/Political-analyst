@@ -705,7 +705,9 @@ def main() -> None:
     if use_llm:
         print("\n[5/5] LLM品質評価を実行（queued件数を処理）")
         with SessionLocal() as db:
-            processed = process_pending_evaluations(db, batch_size=100)
+            # 件数は LLM_BATCH_SIZE、同時実行数は LLM_CONCURRENCY に委譲する
+            # （キューを数回の実行で消化できるよう実行時に調整するため）。
+            processed = process_pending_evaluations(db)
         print(f"  処理完了: {processed} 件")
     else:
         print("\n[5/5] LLM評価スキップ（ANTHROPIC_API_KEY / OPENAI_API_KEY 未設定 or --skip-llm）")
